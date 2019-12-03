@@ -58,16 +58,17 @@ class Sequence(Expression, Taggable, Substitutable):
 
 @attr.s
 class RuleReference(Expression, Taggable):
-    """Reference to a rule by <name>."""
+    """Reference to a rule by <name> or <grammar.name>."""
 
-    rule_name: typing.Optional[str] = attr.ib(default="")
+    rule_name: str = attr.ib(default="")
+    grammar_name: typing.Optional[str] = attr.ib(default=None)
 
 
 @attr.s
 class SlotReference(Expression, Taggable):
     """Reference to a slot by $name."""
 
-    slot_name: typing.Optional[str] = attr.ib(default="")
+    slot_name: str = attr.ib(default="")
 
 
 @attr.s
@@ -106,7 +107,7 @@ class Rule:
     def parse(cls, text: str) -> "Rule":
         # public <RuleName> = rule body;
         # <RuleName> = rule body;
-        rule_match = Rule.RULE_DEFINITION.match(line)
+        rule_match = Rule.RULE_DEFINITION.match(text)
         assert rule_match is not None
 
         public = rule_match.group(1) is not None
@@ -198,7 +199,17 @@ def parse_expression(
                     None, text[current_index + 1 :], end=">", is_literal=False
                 )
 
-                rule.rule_name = text[current_index + 1 : next_index - 1]
+
+                rule_name = text[current_index + 1 : next_index - 1]
+                if "." in rule_name:
+                    # Split by last dot
+                    last_dot = rule_name.rindex(".")
+                    rule.grammar_name = rule_name[:last_dot]
+                    rule.rule_name = rule_name[last_dot + 1 :]
+                else:
+                    # Use entire name
+                    rule.rule_name = rule_name
+
                 rule.text = text[current_index:next_index]
                 root.items.append(rule)
                 last_taggable = rule

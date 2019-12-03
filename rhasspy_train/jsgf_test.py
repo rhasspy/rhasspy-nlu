@@ -52,13 +52,23 @@ class BasicJsgfTestCase(unittest.TestCase):
         )
 
     def test_rule_reference(self):
-        """Basic rule reference."""
+        """Basic rule references."""
         s = Sentence.parse("this <is-a> test")
         self.assertEqual(
             s.items,
             [
                 Word("this"),
                 RuleReference(text="<is-a>", rule_name="is-a"),
+                Word("test"),
+            ],
+        )
+
+        s = Sentence.parse("this <is.a> test")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                RuleReference(text="<is.a>", grammar_name="is", rule_name="a"),
                 Word("test"),
             ],
         )
