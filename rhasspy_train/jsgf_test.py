@@ -1,7 +1,7 @@
 """Test cases for JSGF parser."""
 import unittest
 
-from jsgf import (
+from .jsgf import (
     Sentence,
     Word,
     Sequence,

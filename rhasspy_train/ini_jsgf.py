@@ -8,7 +8,7 @@ from collections import defaultdict
 
 import attr
 
-from jsgf import Rule, Sentence
+from .jsgf import Rule, Sentence
 
 _LOGGER = logging.getLogger(__name__)
 

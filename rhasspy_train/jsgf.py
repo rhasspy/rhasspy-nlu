@@ -65,7 +65,7 @@ class RuleReference(Expression, Taggable):
 
 
 @attr.s
-class SlotReference(Expression, Taggable):
+class SlotReference(Expression, Taggable, Substitutable):
     """Reference to a slot by $name."""
 
     slot_name: str = attr.ib(default="")
@@ -125,11 +125,19 @@ def split_words(text: str) -> typing.Iterable[Expression]:
     """Split words by whitespace. Detect slot references and substitutions."""
     for token in re.split(r"\s+", text):
         if token.startswith("$"):
-            yield SlotReference(text=token, slot_name=token[1:])
+            if ":" in token:
+                # Slot with substitutions
+                lhs, rhs = token[1:].split(":", maxsplit=1)
+                yield SlotReference(text=token, slot_name=lhs, substitution=rhs)
+            else:
+                # Slot without substitutions
+                yield SlotReference(text=token, slot_name=token[1:])
         elif ":" in token:
+            # Word with substitution
             lhs, rhs = token.split(":", maxsplit=1)
             yield Word(text=lhs, substitution=rhs)
         else:
+            # With without substitution
             yield Word(text=token)
 
 
@@ -198,7 +206,6 @@ def parse_expression(
                 next_index = current_index + parse_expression(
                     None, text[current_index + 1 :], end=">", is_literal=False
                 )
-
 
                 rule_name = text[current_index + 1 : next_index - 1]
                 if "." in rule_name:

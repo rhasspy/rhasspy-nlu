@@ -2,8 +2,8 @@
 import io
 import unittest
 
-from ini_jsgf import IniJsgf
-from jsgf import Sentence, Word, Sequence, SequenceType
+from .ini_jsgf import IniJsgf
+from .jsgf import Sentence, Word, Sequence, SequenceType
 
 
 class IniJsgfTestCase(unittest.TestCase):
