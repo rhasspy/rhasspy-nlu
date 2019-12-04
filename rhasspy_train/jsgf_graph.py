@@ -6,12 +6,13 @@ import typing
 import attr
 import networkx as nx
 
-from jsgf import (
+from .jsgf import (
     Sentence,
     Rule,
     RuleReference,
     SlotReference,
     Word,
+    Sequence,
     SequenceType,
     Expression,
     Taggable,
@@ -182,7 +183,8 @@ def expression_to_graph(
 def intents_to_graph(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
-):
+) -> nx.MultiDiGraph:
+    """Convert sentences/rules grouped by intent into a directed graph."""
     # Slots or rules
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
 
@@ -225,9 +227,9 @@ def intents_to_graph(
 
     # Create final state and join all sentences to it
     final_state = len(graph)
+    graph.add_node(final_state, final=True)
+
     for next_state in final_states:
-        graph.add_edge(
-            next_state, final_state, ilabel="", olabel="", label="", final=True
-        )
+        graph.add_edge(next_state, final_state, ilabel="", olabel="", label="")
 
     return graph

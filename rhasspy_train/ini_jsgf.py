@@ -2,6 +2,7 @@
 import io
 import configparser
 import logging
+from pathlib import Path
 import re
 import typing
 from collections import defaultdict
@@ -46,54 +47,59 @@ class Grammar:
         return grammar
 
 
-class IniJsgf:
-    """Parser for JSGF embedded inside an ini file."""
+# -----------------------------------------------------------------------------
 
-    @classmethod
-    def parse(
-        cls, source: typing.TextIO, whitelist: typing.Optional[typing.List[str]] = None
-    ) -> typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]]:
-        """Parse multiple JSGF grammars from an ini file."""
-        # Create ini parser
-        config = configparser.ConfigParser(
-            allow_no_value=True, strict=False, delimiters=["="]
-        )
 
-        config.optionxform = str  # case sensitive
-        config.read_file(source)
+def parse_ini(
+    source: typing.Union[str, Path, typing.TextIO],
+    whitelist: typing.Optional[typing.List[str]] = None,
+) -> typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]]:
+    """Parse multiple JSGF grammars from an ini file."""
+    if isinstance(source, str):
+        source = io.StringIO(source)
+    elif isinstance(source, Path):
+        source = open(source, "r")
 
-        _LOGGER.debug("Loaded ini file")
+    # Create ini parser
+    config = configparser.ConfigParser(
+        allow_no_value=True, strict=False, delimiters=["="]
+    )
 
-        # Process configuration sections
-        sentences: typing.Dict[
-            str, typing.List[typing.Union[Sentence, Rule]]
-        ] = defaultdict(list)
+    config.optionxform = str  # case sensitive
+    config.read_file(source)
 
-        # Parse each section (intent)
-        for sec_name in config.sections():
-            # Exclude if not in whitelist.
-            # Empty whitelist means keep all.
-            if (whitelist is not None) and (sec_name not in whitelist):
-                logger.debug("Skipping %s (not in whitelist)", sec_name)
-                continue
+    _LOGGER.debug("Loaded ini file")
 
-            # Processs settings (sentences/rules)
-            for k, v in config[sec_name].items():
-                if v is None:
-                    # Collect non-valued keys as sentences
-                    sentence = k.strip()
+    # Process configuration sections
+    sentences: typing.Dict[
+        str, typing.List[typing.Union[Sentence, Rule]]
+    ] = defaultdict(list)
 
-                    # Fix \[ escape sequence
-                    sentence = re.sub(r"\\\[", "[", sentence)
+    # Parse each section (intent)
+    for sec_name in config.sections():
+        # Exclude if not in whitelist.
+        # Empty whitelist means keep all.
+        if (whitelist is not None) and (sec_name not in whitelist):
+            logger.debug("Skipping %s (not in whitelist)", sec_name)
+            continue
 
-                    sentences[sec_name].append(Sentence.parse(sentence))
-                else:
-                    # Collect key/value pairs as JSGF rules
-                    rule = "<{0}> = ({1});".format(k.strip(), v.strip())
+        # Processs settings (sentences/rules)
+        for k, v in config[sec_name].items():
+            if v is None:
+                # Collect non-valued keys as sentences
+                sentence = k.strip()
 
-                    # Fix \[ escape sequence
-                    rule = re.sub(r"\\\[", "[", rule)
+                # Fix \[ escape sequence
+                sentence = re.sub(r"\\\[", "[", sentence)
 
-                    sentences[sec_name].append(Rule.parse(rule))
+                sentences[sec_name].append(Sentence.parse(sentence))
+            else:
+                # Collect key/value pairs as JSGF rules
+                rule = "<{0}> = ({1});".format(k.strip(), v.strip())
 
-        return sentences
+                # Fix \[ escape sequence
+                rule = re.sub(r"\\\[", "[", rule)
+
+                sentences[sec_name].append(Rule.parse(rule))
+
+    return sentences

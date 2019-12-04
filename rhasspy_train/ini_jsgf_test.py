@@ -2,7 +2,7 @@
 import io
 import unittest
 
-from .ini_jsgf import IniJsgf
+from .ini_jsgf import parse_ini
 from .jsgf import Sentence, Word, Sequence, SequenceType
 
 
@@ -20,7 +20,7 @@ class IniJsgfTestCase(unittest.TestCase):
         """
 
         with io.StringIO(ini_text) as ini_file:
-            sentences = IniJsgf.parse(ini_file)
+            sentences = parse_ini(ini_file)
             self.assertEqual(
                 sentences,
                 {
@@ -52,7 +52,7 @@ class IniJsgfTestCase(unittest.TestCase):
         """
 
         with io.StringIO(ini_text) as ini_file:
-            sentences = IniJsgf.parse(ini_file)
+            sentences = parse_ini(ini_file)
             self.assertEqual(
                 sentences,
                 {
