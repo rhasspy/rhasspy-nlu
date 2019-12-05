@@ -11,12 +11,17 @@ from .intent import Entity, Intent, Recognition, RecognitionResult, TagInfo
 
 
 def recognize(
-    tokens: typing.List[str],
+    tokens: typing.Union[str, typing.List[str]],
     graph: nx.DiGraph,
     fuzzy: bool = True,
     stop_words: typing.Optional[typing.Set[str]] = None,
     **fuzzy_args
 ) -> typing.Tuple[RecognitionResult, typing.List[Recognition]]:
+    """Recognize one or more intents from tokens."""
+    if isinstance(tokens, str):
+        # Assume whitespace separation
+        tokens = tokens.split()
+
     if fuzzy:
         # Fuzzy recognition
         best_fuzzy = best_fuzzy_cost(
@@ -209,7 +214,7 @@ def paths_fuzzy(
             if in_label:
                 if next_in_tokens:
                     if in_label == next_in_tokens[0]:
-                        # Consume matching token
+                        # Match (no cost)
                         next_in_tokens.pop(0)
                     elif in_label in stop_words:
                         # Skip stop word (graph)
@@ -217,9 +222,25 @@ def paths_fuzzy(
                     elif next_in_tokens[0] in stop_words:
                         # Skip stop word (input)
                         next_cost += stop_word_cost
+                        next_in_tokens.pop(0)
+
+                        # Restart search at current node
+                        if next_in_tokens:
+                            node_queue.append(
+                                (
+                                    q_node,
+                                    next_in_tokens,
+                                    next_out_nodes,
+                                    next_out_count,
+                                    next_cost,
+                                    next_intent,
+                                )
+                            )
+                            continue
                     else:
                         # Mismatched token
                         next_cost += mismatched_word_cost
+                        next_in_tokens.pop(0)
                 elif in_label in stop_words:
                     # Skip stop word (graph)
                     next_cost += stop_word_cost
