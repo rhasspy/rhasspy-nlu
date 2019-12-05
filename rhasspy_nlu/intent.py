@@ -19,6 +19,8 @@ class Entity:
     raw_start: int = attr.ib(default=0)
     end: int = attr.ib(default=0)
     raw_end: int = attr.ib(default=0)
+    tokens: typing.List[str] = attr.ib(factory=list)
+    raw_tokens: typing.List[str] = attr.ib(factory=list)
 
 
 @attr.s
@@ -51,7 +53,6 @@ class RecognitionResult(str, Enum):
 class Recognition:
     """Output of intent recognition."""
 
-    result: RecognitionResult = attr.ib()
     intent: typing.Optional[Intent] = attr.ib(default=None)
     text: str = attr.ib(default="")
     raw_text: str = attr.ib(default="")

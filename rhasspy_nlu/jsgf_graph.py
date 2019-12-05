@@ -24,7 +24,7 @@ from .jsgf import (
 
 def expression_to_graph(
     expression: Expression,
-    graph: nx.MultiDiGraph,
+    graph: nx.DiGraph,
     source_state: int,
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
     empty_substitution: bool = False,
@@ -92,7 +92,7 @@ def expression_to_graph(
         # State for single word
         word: Word = expression
         next_state = len(graph)
-        graph.add_node(next_state, word=word)
+        graph.add_node(next_state, word=word.text)
         ilabel = word.text
         olabel = word.substitution or word.text
 
@@ -145,16 +145,17 @@ def expression_to_graph(
             empty_substitution=(empty_substitution or slot_ref.substitution),
         )
 
-    # Handle tag end
-    if isinstance(expression, Taggable) and expression.tag:
-        # End tag
+    # Handle sequence substitution
+    if isinstance(expression, Substitutable) and expression.substitution:
+        # Output substituted word
         next_state = len(graph)
-        tag = expression.tag.tag_text
-        olabel = f"__end__{tag}"
+        olabel = expression.substitution
         label = f":{olabel}"
         graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
         source_state = next_state
 
+    # Handle tag end
+    if isinstance(expression, Taggable) and expression.tag:
         # Handle tag substitution
         if expression.tag.substitution:
             # Output substituted word
@@ -166,14 +167,14 @@ def expression_to_graph(
             )
             source_state = next_state
 
-    # Handle sequence substitution
-    if isinstance(expression, Substitutable) and expression.substitution:
-        # Output substituted word
+        # End tag
         next_state = len(graph)
-        olabel = expression.substitution
+        tag = expression.tag.tag_text
+        olabel = f"__end__{tag}"
         label = f":{olabel}"
         graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
         source_state = next_state
+
 
     return source_state
 
@@ -184,7 +185,7 @@ def expression_to_graph(
 def intents_to_graph(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
-) -> nx.MultiDiGraph:
+) -> nx.DiGraph:
     """Convert sentences/rules grouped by intent into a directed graph."""
     # Slots or rules
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
@@ -207,7 +208,7 @@ def intents_to_graph(
                 sentences[intent_name].append(item)
 
     # Create initial graph
-    graph: nx.MultiDiGraph = nx.MultiDiGraph()
+    graph: nx.DiGraph = nx.DiGraph()
     root_state: int = 0
     graph.add_node(root_state, start=True)
     final_states: typing.List[int] = []
