@@ -92,6 +92,7 @@ def expression_to_graph(
         # State for single word
         word: Word = expression
         next_state = len(graph)
+        graph.add_node(next_state, word=word)
         ilabel = word.text
         olabel = word.substitution or word.text
 

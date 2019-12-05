@@ -5,18 +5,18 @@ import typing
 import attr
 import networkx as nx
 
+from .intent import Entity, Intent, Recognition, RecognitionResult, TagInfo
+
 # -----------------------------------------------------------------------------
 
 
-def recognize_strict(
-    tokens: typing.List[str], graph: nx.MultiDiGraph
-) -> typing.List[str]:
+def recognize_strict(tokens: typing.List[str], graph: nx.MultiDiGraph) -> Recognition:
     """Match a single path from the graph exactly if possible."""
     # node -> attrs
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node = [n for n, data in n_data if data.get("start", False)][0]
+    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
 
     # Do breadth-first search
     node_queue = [(start_node, [], tokens)]
@@ -25,7 +25,7 @@ def recognize_strict(
         is_final = n_data[current_node].get("final", False)
         if is_final and (not current_tokens):
             # Reached final state
-            return current_path
+            return Recognition(result=RecognitionResult.SUCCESS, tokens=current_path)
 
         for next_node, edges in graph[current_node].items():
             for _, edge_data in edges.items():
@@ -54,7 +54,7 @@ def recognize_strict(
                 # Continue search
                 node_queue.append((next_node, next_path, next_tokens))
 
-    return []
+    return Recognition(result=RecognitionResult.FAILURE)
 
 
 # -----------------------------------------------------------------------------
