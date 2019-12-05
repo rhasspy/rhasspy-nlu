@@ -79,17 +79,7 @@ class Sentence(Sequence):
     def parse(cls, text: str) -> "Sentence":
         s = Sentence(text=text)
         parse_expression(s, text)
-
-        # Unwrap single child
-        if (len(s.items) == 1) and isinstance(s.items[0], Sequence):
-            item = s.items[0]
-            s.type = item.type
-            s.text = item.text
-            s.items = item.items
-            s.tag = item.tag
-            s.substitution = item.substitution
-
-        return s
+        return unwrap_sequence(s)
 
 
 @attr.s
@@ -141,6 +131,19 @@ def split_words(text: str) -> typing.Iterable[Expression]:
             yield Word(text=token)
 
 
+def unwrap_sequence(seq: Sequence) -> Sequence:
+    # Unwrap single child
+    while (len(seq.items) == 1) and isinstance(seq.items[0], Sequence):
+        item = seq.items[0]
+        seq.type = item.type
+        seq.text = item.text or seq.text
+        seq.items = item.items
+        seq.tag = item.tag or seq.tag
+        seq.substitution = item.substitution or seq.substitution
+
+    return seq
+
+
 def parse_expression(
     root: typing.Optional[Sequence],
     text: str,
@@ -152,6 +155,7 @@ def parse_expression(
     next_index: int = 0
     literal: str = ""
     last_taggable: typing.Optional[Taggable] = None
+    last_group: typing.Optional[Sequence] = root
 
     # Process text character-by-character
     for current_index, c in enumerate(text):
@@ -160,6 +164,7 @@ def parse_expression(
             current_index += 1
             continue
 
+        # Get previous character
         if current_index > 0:
             last_c = text[current_index - 1]
         else:
@@ -193,15 +198,16 @@ def parse_expression(
             # Break literal here
             literal = literal.strip()
             if literal:
-                assert root is not None
+                assert last_group is not None
                 words = list(split_words(literal))
-                root.items.extend(words)
+                last_group.items.extend(words)
+
                 last_taggable = words[-1]
                 literal = ""
 
             if c == "<":
                 # Rule reference
-                assert root is not None
+                assert last_group is not None
                 rule = RuleReference()
                 next_index = current_index + parse_expression(
                     None, text[current_index + 1 :], end=">", is_literal=False
@@ -218,30 +224,46 @@ def parse_expression(
                     rule.rule_name = rule_name
 
                 rule.text = text[current_index:next_index]
-                root.items.append(rule)
+                last_group.items.append(rule)
                 last_taggable = rule
             elif c == "(":
                 # Group (expression)
-                assert root is not None
+                assert last_group is not None
                 group = Sequence(type=SequenceType.GROUP)
                 next_index = current_index + parse_expression(
                     group, text[current_index + 1 :], end=")"
                 )
 
+                group = unwrap_sequence(group)
                 group.text = text[current_index + 1 : next_index - 1]
-                root.items.append(group)
+                last_group.items.append(group)
                 last_taggable = group
             elif c == "[":
                 # Optional
-                optional = Sequence(type=SequenceType.ALTERNATIVE)
+                # Recurse with group sequence to capture multi-word children.
+                optional_seq = Sequence(type=SequenceType.GROUP)
                 next_index = current_index + parse_expression(
-                    optional, text[current_index + 1 :], end="]"
+                    optional_seq, text[current_index + 1 :], end="]"
                 )
+
+                optional_seq = unwrap_sequence(optional_seq)
+                optional = Sequence(type=SequenceType.ALTERNATIVE)
+                if optional_seq.items:
+                    if len(optional_seq.items) == 1:
+                        # Unwrap inner sequence
+                        optional.items.append(optional_seq.items[0])
+                    elif optional_seq.type == SequenceType.ALTERNATIVE:
+                        # Unwrap inner alternative
+                        optional.items.extend(optional_seq.items)
+                    else:
+                        # Keep inner group
+                        optional_seq.text = text[current_index + 1 : next_index - 1]
+                        optional.items.append(optional_seq)
 
                 # Empty alternative
                 optional.items.append(Word(text=""))
                 optional.text = text[current_index + 1 : next_index - 1]
-                root.items.append(optional)
+                last_group.items.append(optional)
                 last_taggable = optional
             elif c == "{":
                 assert last_taggable is not None
@@ -263,7 +285,30 @@ def parse_expression(
                 last_taggable.tag = tag
             elif c == "|":
                 assert root is not None
-                root.type = SequenceType.ALTERNATIVE
+                if root.type != SequenceType.ALTERNATIVE:
+                    # Create alternative
+                    alternative = Sequence(type=SequenceType.ALTERNATIVE)
+                    if len(root.items) == 1:
+                        # Add directly
+                        alternative.items.append(root.items[0])
+                    else:
+                        # Wrap in group
+                        last_group = Sequence(type=SequenceType.GROUP, items=root.items)
+                        alternative.items.append(last_group)
+
+                    # Modify original sequence
+                    root.items = [alternative]
+
+                    # Overwrite root
+                    root = alternative
+
+                if not last_group.text:
+                    # Fix text
+                    last_group.text = " ".join(item.text for item in last_group.items)
+
+                # Create new group for any follow-on expressions
+                last_group = Sequence(type=SequenceType.GROUP)
+                alternative.items.append(last_group)
         else:
             # Accumulate into current literal
             literal += c
@@ -273,7 +318,15 @@ def parse_expression(
     if is_literal and literal:
         assert root is not None
         words = list(split_words(literal))
-        root.items.extend(words)
+        last_group.items.extend(words)
+
+    if last_group:
+        if len(last_group.items) == 1:
+            # Simplify final group
+            root.items[-1] = last_group.items[0]
+        elif not last_group.text:
+            # Fix text
+            last_group.text = " ".join(item.text for item in last_group.items)
 
     if (end is not None) and (not found):
         # Signal end not found

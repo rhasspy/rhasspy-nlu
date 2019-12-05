@@ -28,6 +28,7 @@ def expression_to_graph(
     source_state: int,
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
     empty_substitution: bool = False,
+    grammar_name: typing.Optional[str] = None,
 ) -> int:
     """Insert JSGF expression into a graph. Return final state."""
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
@@ -65,6 +66,7 @@ def expression_to_graph(
                     source_state,
                     replacements=replacements,
                     empty_substitution=empty_substitution,
+                    grammar_name=grammar_name,
                 )
                 final_states.append(next_state)
 
@@ -85,6 +87,7 @@ def expression_to_graph(
                     next_state,
                     replacements=replacements,
                     empty_substitution=empty_substitution,
+                    grammar_name=grammar_name,
                 )
 
             source_state = next_state
@@ -108,8 +111,13 @@ def expression_to_graph(
         # Reference to a local or remote rule
         rule_ref: RuleReference = expression
         if rule_ref.grammar_name:
+            # Fully resolved rule name
             rule_name = f"{rule_ref.grammar_name}.{rule_ref.rule_name}"
+        elif grammar_name:
+            # Local rule
+            rule_name = f"{grammar_name}.{rule_ref.rule_name}"
         else:
+            # Unresolved rule name
             rule_name = rule_ref.rule_name
 
         # Surround with <>
@@ -125,6 +133,7 @@ def expression_to_graph(
             source_state,
             replacements=replacements,
             empty_substitution=empty_substitution,
+            grammar_name=grammar_name,
         )
     elif isinstance(expression, SlotReference):
         # Reference to slot values
@@ -143,6 +152,7 @@ def expression_to_graph(
             source_state,
             replacements=replacements,
             empty_substitution=(empty_substitution or slot_ref.substitution),
+            grammar_name=grammar_name,
         )
 
     # Handle sequence substitution
@@ -174,7 +184,6 @@ def expression_to_graph(
         label = f":{olabel}"
         graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
         source_state = next_state
-
 
     return source_state
 
@@ -223,7 +232,11 @@ def intents_to_graph(
         for sentence in intent_sentences:
             # Insert all sentences for this intent
             next_state = expression_to_graph(
-                sentence, graph, intent_state, replacements=replacements
+                sentence,
+                graph,
+                intent_state,
+                replacements=replacements,
+                grammar_name=intent_name,
             )
             final_states.append(next_state)
 

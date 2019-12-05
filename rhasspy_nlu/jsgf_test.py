@@ -99,7 +99,17 @@ class BasicJsgfTestCase(unittest.TestCase):
         """Tag an alternative."""
         s = Sentence.parse("[this is a]{test}")
         self.assertEqual(s.tag, Tag(tag_text="test"))
-        self.assertEqual(s.items, [Word("this"), Word("is"), Word("a"), Word("")])
+        self.assertEqual(
+            s.items,
+            [
+                Sequence(
+                    text="this is a",
+                    type=SequenceType.GROUP,
+                    items=[Word("this"), Word("is"), Word("a")],
+                ),
+                Word(""),
+            ],
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -111,6 +121,7 @@ class AdvancedJsgfTestCase(unittest.TestCase):
     def test_optional_alternative(self):
         """Combined optional and alternative."""
         s = Sentence.parse("this [is | a] test")
+        print(s)
         self.assertEqual(
             s.items,
             [
@@ -153,7 +164,14 @@ class AdvancedJsgfTestCase(unittest.TestCase):
                     text="is a",
                     type=SequenceType.ALTERNATIVE,
                     substitution="isa",
-                    items=[Word("is"), Word("a"), Word("")],
+                    items=[
+                        Sequence(
+                            text="is a",
+                            type=SequenceType.GROUP,
+                            items=[Word("is"), Word("a")],
+                        ),
+                        Word(""),
+                    ],
                 ),
                 Word("test"),
             ],
@@ -170,6 +188,76 @@ class AdvancedJsgfTestCase(unittest.TestCase):
         s = Sentence.parse("(this:is){a:test}")
         self.assertEqual(s.tag, Tag(tag_text="a", substitution="test"))
         self.assertEqual(s.items, [Word("this", substitution="is")])
+
+    def test_nested_optionals(self):
+        """Optional inside an optional."""
+        s = Sentence.parse("this [[is] a] test")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Sequence(
+                    text="[is] a",
+                    type=SequenceType.ALTERNATIVE,
+                    items=[
+                        Sequence(
+                            text="[is] a",
+                            type=SequenceType.GROUP,
+                            items=[
+                                Sequence(
+                                    text="is",
+                                    type=SequenceType.ALTERNATIVE,
+                                    items=[Word("is"), Word("")],
+                                ),
+                                Word("a"),
+                            ],
+                        ),
+                        Word(""),
+                    ],
+                ),
+                Word("test"),
+            ],
+        )
+
+    def test_implicit_sequences(self):
+        """Implicit sequences around alternative."""
+        s = Sentence.parse("this is | a test")
+        self.assertEqual(s.type, SequenceType.ALTERNATIVE)
+        self.assertEqual(
+            s.items,
+            [
+                Sequence(
+                    text="this is",
+                    type=SequenceType.GROUP,
+                    items=[Word("this"), Word("is")],
+                ),
+                Sequence(
+                    text="a test",
+                    type=SequenceType.GROUP,
+                    items=[Word("a"), Word("test")],
+                ),
+            ],
+        )
+
+    def test_implicit_sequence_with_rule(self):
+        """Implicit sequence around alternative with a rule reference."""
+        s = Sentence.parse("this | is a <test>")
+        self.assertEqual(s.type, SequenceType.ALTERNATIVE)
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Sequence(
+                    text="is a <test>",
+                    type=SequenceType.GROUP,
+                    items=[
+                        Word("is"),
+                        Word("a"),
+                        RuleReference(text="<test>", rule_name="test"),
+                    ],
+                ),
+            ],
+        )
 
 
 # -----------------------------------------------------------------------------

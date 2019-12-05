@@ -112,7 +112,7 @@ class FuzzyResult:
     """Single path for fuzzy recognition."""
 
     intent_name: str = attr.ib()
-    node_path: typing.List[int] = attr.ib()
+    node_path: typing.Iterable[int] = attr.ib()
     cost: float = attr.ib()
 
 
@@ -163,12 +163,13 @@ def paths_fuzzy(
                 best_intent_cost = best_intent_costs[0].cost
 
             final_cost = q_cost + len(q_in_tokens)  # remaning tokens count against
+            final_path = tuple(q_out_nodes)
 
             if (best_intent_cost is None) or (final_cost < best_intent_cost):
                 # Overwrite best cost
                 intent_symbols_and_costs[q_intent] = [
                     FuzzyResult(
-                        intent_name=q_intent, node_path=q_out_nodes, cost=final_cost
+                        intent_name=q_intent, node_path=final_path, cost=final_cost
                     )
                 ]
             elif final_cost == best_intent_cost:
@@ -176,7 +177,7 @@ def paths_fuzzy(
                 intent_symbols_and_costs[q_intent].append(
                     (
                         FuzzyResult(
-                            intent_name=q_intent, node_path=q_out_nodes, cost=final_cost
+                            intent_name=q_intent, node_path=final_path, cost=final_cost
                         )
                     )
                 )
@@ -276,7 +277,9 @@ def best_fuzzy_cost(
 
 
 def path_to_recognition(
-    node_path: typing.List[int], graph: nx.DiGraph, cost: typing.Optional[float] = None
+    node_path: typing.Iterable[int],
+    graph: nx.DiGraph,
+    cost: typing.Optional[float] = None,
 ) -> typing.Tuple[RecognitionResult, typing.Optional[Recognition]]:
     """Transform node path in graph to an intent recognition object."""
     if not node_path:
@@ -294,14 +297,15 @@ def path_to_recognition(
     entity_stack: typing.List[Entity] = []
 
     # Handle first node
-    last_node = node_path.pop(0)
+    node_path_iter = iter(node_path)
+    last_node = next(node_path_iter)
     word = node_attrs[last_node].get("word", "")
     if word:
         recognition.raw_tokens.append(word)
         raw_index += len(word)
 
     # Follow path
-    for next_node in node_path:
+    for next_node in node_path_iter:
         # Get raw text
         word = node_attrs[next_node].get("word", "")
         if word:
