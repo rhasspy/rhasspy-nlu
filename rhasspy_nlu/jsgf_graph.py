@@ -3,6 +3,7 @@ from collections import defaultdict
 from enum import Enum
 import io
 import typing
+from pathlib import Path
 
 import attr
 import networkx as nx
@@ -326,3 +327,95 @@ def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> GraphFsts:
         input_symbols=input_symbols,
         output_symbols=output_symbols,
     )
+
+
+# -----------------------------------------------------------------------------
+
+
+@attr.s
+class GraphFst:
+    intent_fst: str = attr.ib()
+    symbols: typing.Dict[str, int] = attr.ib()
+    input_symbols: typing.Dict[str, int] = attr.ib()
+    output_symbols: typing.Dict[str, int] = attr.ib()
+
+    def write_fst(
+        self,
+        fst_text_path: typing.Union[str, Path],
+        isymbols_path: typing.Union[str, Path],
+        osymbols_path: typing.Union[str, Path],
+    ):
+        """Write FST text and symbol files."""
+        # Write FST
+        Path(fst_text_path).write_text(self.intent_fst)
+
+        # Write input symbols
+        with open(isymbols_path, "w") as isymbols_file:
+            for symbol, num in self.input_symbols.items():
+                print(symbol, num, file=isymbols_file)
+
+        # Write output symbols
+        with open(osymbols_path, "w") as osymbols_file:
+            for symbol, num in self.output_symbols.items():
+                print(symbol, num, file=osymbols_file)
+
+
+def graph_to_fst(graph: nx.DiGraph, eps="<eps>") -> GraphFst:
+    """Convert graph to OpenFST text format."""
+    symbols: typing.Dict[str, int] = {eps: 0}
+    input_symbols: typing.Dict[str, int] = {}
+    output_symbols: typing.Dict[str, int] = {}
+    n_data = graph.nodes(data=True)
+
+    # start state
+    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+
+    with io.StringIO() as fst_file:
+        final_states: typing.Set[int] = set()
+        state_map: typing.Dict[int, int] = {}
+
+        # Transitions
+        for edge in nx.edge_bfs(graph, start_node):
+            edge_data = graph.edges[edge]
+            from_node, to_node = edge
+
+            # Map states starting from 0
+            from_state = state_map.get(from_node, len(state_map))
+            state_map[from_node] = from_state
+
+            to_state = state_map.get(to_node, len(state_map))
+            state_map[to_node] = to_state
+
+            # Get input/output labels.
+            # Empty string indicates epsilon transition (eps)
+            ilabel = edge_data.get("ilabel", "") or eps
+            olabel = edge_data.get("olabel", "") or eps
+
+            # Map labels (symbols) to integers
+            isymbol = symbols.get(ilabel, len(symbols))
+            symbols[ilabel] = isymbol
+            input_symbols[ilabel] = isymbol
+
+            osymbol = symbols.get(olabel, len(symbols))
+            symbols[olabel] = osymbol
+            output_symbols[olabel] = osymbol
+
+            print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
+
+            # Check if final state
+            if n_data[from_node].get("final", False):
+                final_states.add(from_state)
+
+            if n_data[to_node].get("final", False):
+                final_states.add(to_state)
+
+        # Record final states
+        for final_state in final_states:
+            print(final_state, file=fst_file)
+
+        return GraphFst(
+            intent_fst=fst_file.getvalue(),
+            symbols=symbols,
+            input_symbols=input_symbols,
+            output_symbols=output_symbols,
+        )
