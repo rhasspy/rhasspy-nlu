@@ -254,9 +254,20 @@ def intents_to_graph(
 # -----------------------------------------------------------------------------
 
 
-def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> typing.Dict[str, str]:
+@attr.s
+class GraphFsts:
+    intent_fsts: typing.Dict[str, str] = attr.ib()
+    symbols: typing.Dict[str, int] = attr.ib()
+    input_symbols: typing.Dict[str, int] = attr.ib()
+    output_symbols: typing.Dict[str, int] = attr.ib()
+
+
+def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> GraphFsts:
     """Convert graph to OpenFST text format, one per intent."""
     intent_fsts: typing.Dict[str, str] = {}
+    symbols: typing.Dict[str, int] = {eps: 0}
+    input_symbols: typing.Dict[str, int] = {}
+    output_symbols: typing.Dict[str, int] = {}
     n_data = graph.nodes(data=True)
 
     # start state
@@ -269,7 +280,7 @@ def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> typing.Dict[str, str]:
 
         with io.StringIO() as intent_file:
             # Transitions
-            for edge in nx.bfs_edges(graph, intent_node):
+            for edge in nx.edge_bfs(graph, intent_node):
                 edge_data = graph.edges[edge]
                 from_node, to_node = edge
 
@@ -284,6 +295,16 @@ def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> typing.Dict[str, str]:
                 # Empty string indicates epsilon transition (eps)
                 ilabel = edge_data.get("ilabel", "") or eps
                 olabel = edge_data.get("olabel", "") or eps
+
+                # Map labels (symbols) to integers
+                isymbol = symbols.get(ilabel, len(symbols))
+                symbols[ilabel] = isymbol
+                input_symbols[ilabel] = isymbol
+
+                osymbol = symbols.get(olabel, len(symbols))
+                symbols[olabel] = osymbol
+                output_symbols[olabel] = osymbol
+
                 print(f"{from_state} {to_state} {ilabel} {olabel}", file=intent_file)
 
                 # Check if final state
@@ -299,4 +320,9 @@ def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> typing.Dict[str, str]:
 
             intent_fsts[intent_name] = intent_file.getvalue()
 
-    return intent_fsts
+    return GraphFsts(
+        intent_fsts=intent_fsts,
+        symbols=symbols,
+        input_symbols=input_symbols,
+        output_symbols=output_symbols,
+    )
