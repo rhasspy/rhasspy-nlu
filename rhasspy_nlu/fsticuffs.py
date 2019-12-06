@@ -1,5 +1,5 @@
 """Recognition functions for sentences using JSGF graphs."""
-from collections import defaultdict
+from collections import defaultdict, deque
 import typing
 
 import attr
@@ -15,9 +15,9 @@ def recognize(
     graph: nx.DiGraph,
     fuzzy: bool = True,
     stop_words: typing.Optional[typing.Set[str]] = None,
-    **fuzzy_args
-) -> typing.Tuple[RecognitionResult, typing.List[Recognition]]:
-    """Recognize one or more intents from tokens."""
+    **search_args
+) -> typing.List[Recognition]:
+    """Recognize one or more intents from tokens or a sentence."""
     if isinstance(tokens, str):
         # Assume whitespace separation
         tokens = tokens.split()
@@ -25,7 +25,7 @@ def recognize(
     if fuzzy:
         # Fuzzy recognition
         best_fuzzy = best_fuzzy_cost(
-            paths_fuzzy(tokens, graph, stop_words=stop_words, **fuzzy_args)
+            paths_fuzzy(tokens, graph, stop_words=stop_words, **search_args)
         )
 
         if best_fuzzy:
@@ -39,38 +39,47 @@ def recognize(
                 if result == RecognitionResult.SUCCESS:
                     recognitions.append(recognition)
 
-            if recognitions:
-                return RecognitionResult.SUCCESS, recognitions
+            return recognitions
     else:
         # Strict recognition
-        path = path_strict(tokens, graph)
-        if (not path) and stop_words:
+        paths = list(paths_strict(tokens, graph, **search_args))
+        if (not paths) and stop_words:
             # Try again by excluding stop words
             tokens = [t for t in tokens if t not in stop_words]
-            path = path_strict(tokens, graph, exclude_tokens=stop_words)
+            paths = list(
+                paths_strict(tokens, graph, exclude_tokens=stop_words, **search_args)
+            )
 
-        result, recognition = path_to_recognition(path, graph)
-        if result == RecognitionResult.SUCCESS:
-            return result, [recognition]
+        recognitions = []
+        for path in paths:
+            result, recognition = path_to_recognition(path, graph)
+            if result == RecognitionResult.SUCCESS:
+                recognitions.append(recognition)
+
+        return recognitions
 
     # No results
-    return RecognitionResult.FAILURE, []
+    return []
 
 
 # -----------------------------------------------------------------------------
 
 
-def path_strict(
+def paths_strict(
     tokens: typing.List[str],
     graph: nx.DiGraph,
     exclude_tokens: typing.Optional[typing.Set[str]] = None,
-) -> typing.List[int]:
+    max_paths: typing.Optional[int] = None,
+) -> typing.Iterable[typing.List[int]]:
     """Match a single path from the graph exactly if possible."""
     # node -> attrs
     n_data = graph.nodes(data=True)
 
     # start state
     start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+
+    # Number of matching paths found
+    paths_found: int = 0
 
     # Do breadth-first search
     node_queue = [(start_node, [], tokens)]
@@ -79,7 +88,11 @@ def path_strict(
         is_final = n_data[current_node].get("final", False)
         if is_final and (not current_tokens):
             # Reached final state
-            return current_path
+            paths_found += 1
+            yield current_path
+
+            if max_paths and (paths_found >= max_paths):
+                break
 
         for next_node, edge_data in graph[current_node].items():
             next_path = list(current_path)
@@ -106,8 +119,6 @@ def path_strict(
             # Continue search
             node_queue.append((next_node, next_path, next_tokens))
 
-    return []
-
 
 # -----------------------------------------------------------------------------
 
@@ -121,18 +132,63 @@ class FuzzyResult:
     cost: float = attr.ib()
 
 
+@attr.s
+class FuzzyCostInput:
+    """Input to fuzzy cost function."""
+
+    ilabel: str = attr.ib()
+    tokens: typing.Deque[str] = attr.ib()
+    stop_words: typing.Set[str] = attr.ib()
+
+
+@attr.s
+class FuzzyCostOutput:
+    """Output from fuzzy cost function."""
+
+    cost: float = attr.ib()
+    continue_search: bool = attr.ib(default=True)
+
+
+def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
+    """Increases cost when input tokens fail to match graph. Marginal cost for stop words."""
+    ilabel: str = cost_input.ilabel
+    cost: float = 0.0
+    tokens: typing.Deque[str] = cost_input.tokens
+    stop_words: typing.Set[str] = cost_input.stop_words
+
+    if ilabel:
+        while tokens and (ilabel != tokens[0]):
+            bad_token = tokens.pop(0)
+            if bad_token in stop_words:
+                # Marginal cost to ensure paths matching stop words are preferred
+                cost += 0.1
+            else:
+                # Mismatched token
+                cost += 1
+
+        if tokens and (ilabel == tokens[0]):
+            # Consume matching token
+            tokens.pop(0)
+        else:
+            # No matching token
+            return FuzzyCostOutput(cost=cost, continue_search=False)
+
+    return FuzzyCostOutput(cost=cost)
+
+
 def paths_fuzzy(
     tokens: typing.List[str],
     graph: nx.DiGraph,
     stop_words: typing.Optional[typing.Set[str]] = None,
-    mismatched_word_cost: float = 1,
-    stop_word_cost: float = 0.1,
-    extra_word_cost: float = 1,
+    cost_function: typing.Optional[
+        typing.Callable[[FuzzyCostInput], FuzzyCostOutput]
+    ] = None,
 ) -> typing.Dict[str, typing.List[FuzzyResult]]:
     """Do less strict matching using a cost function and optional stop words."""
     if not tokens:
-        return {}
+        return []
 
+    cost_function = cost_function or default_fuzzy_cost
     stop_words: Set[str] = stop_words or set()
 
     # node -> attrs
@@ -150,14 +206,18 @@ def paths_fuzzy(
     best_cost: float = float(len(n_data))
 
     # (node, in_tokens, out_nodes, out_count, cost, intent_name)
-    node_queue = [(start_node, tokens, [], 0.0, 0, None)]
+    node_queue: typing.List[
+        typing.Tuple[
+            int, typing.List[str], typing.List[int], int, float, typing.Optional[str]
+        ]
+    ] = [(start_node, tokens, [], 0, 0.0, None)]
 
     # BFS it up
     while node_queue:
         q_node, q_in_tokens, q_out_nodes, q_out_count, q_cost, q_intent = node_queue.pop(
             0
         )
-        is_final = n_data[q_node].get("final", False)
+        is_final: bool = n_data[q_node].get("final", False)
 
         # Update best intent cost on final state.
         # Don't bother reporting intents that failed to consume any tokens.
@@ -211,42 +271,16 @@ def paths_fuzzy(
                 elif not out_label.startswith("__"):
                     next_out_count += 1
 
-            if in_label:
-                if next_in_tokens:
-                    if in_label == next_in_tokens[0]:
-                        # Match (no cost)
-                        next_in_tokens.pop(0)
-                    elif in_label in stop_words:
-                        # Skip stop word (graph)
-                        next_cost += stop_word_cost
-                    elif next_in_tokens[0] in stop_words:
-                        # Skip stop word (input)
-                        next_cost += stop_word_cost
-                        next_in_tokens.pop(0)
+            cost_output = cost_function(
+                FuzzyCostInput(
+                    ilabel=in_label, tokens=next_in_tokens, stop_words=stop_words
+                )
+            )
 
-                        # Restart search at current node
-                        if next_in_tokens:
-                            node_queue.append(
-                                (
-                                    q_node,
-                                    next_in_tokens,
-                                    next_out_nodes,
-                                    next_out_count,
-                                    next_cost,
-                                    next_intent,
-                                )
-                            )
-                            continue
-                    else:
-                        # Mismatched token
-                        next_cost += mismatched_word_cost
-                        next_in_tokens.pop(0)
-                elif in_label in stop_words:
-                    # Skip stop word (graph)
-                    next_cost += stop_word_cost
-                else:
-                    # No matching token
-                    next_cost += extra_word_cost
+            next_cost += cost_output.cost
+
+            if not cost_output.continue_search:
+                continue
 
             # Extend current path
             next_out_nodes.append(q_node)

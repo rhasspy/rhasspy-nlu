@@ -1,6 +1,7 @@
 """Utilities to convert JSGF sentences to directed graphs."""
 from collections import defaultdict
 from enum import Enum
+import io
 import typing
 
 import attr
@@ -248,3 +249,54 @@ def intents_to_graph(
         graph.add_edge(next_state, final_state, ilabel="", olabel="", label="")
 
     return graph
+
+
+# -----------------------------------------------------------------------------
+
+
+def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> typing.Dict[str, str]:
+    """Convert graph to OpenFST text format, one per intent."""
+    intent_fsts: typing.Dict[str, str] = {}
+    n_data = graph.nodes(data=True)
+
+    # start state
+    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+
+    for _, intent_node, edge_data in graph.edges(start_node, data=True):
+        intent_name: str = edge_data["olabel"][9:]
+        final_states: typing.Set[int] = set()
+        state_map: typing.Dict[int, int] = {}
+
+        with io.StringIO() as intent_file:
+            # Transitions
+            for edge in nx.bfs_edges(graph, intent_node):
+                edge_data = graph.edges[edge]
+                from_node, to_node = edge
+
+                # Map states starting from 0
+                from_state = state_map.get(from_node, len(state_map))
+                state_map[from_node] = from_state
+
+                to_state = state_map.get(to_node, len(state_map))
+                state_map[to_node] = to_state
+
+                # Get input/output labels.
+                # Empty string indicates epsilon transition (eps)
+                ilabel = edge_data.get("ilabel", "") or eps
+                olabel = edge_data.get("olabel", "") or eps
+                print(f"{from_state} {to_state} {ilabel} {olabel}", file=intent_file)
+
+                # Check if final state
+                if n_data[from_node].get("final", False):
+                    final_states.add(from_state)
+
+                if n_data[to_node].get("final", False):
+                    final_states.add(to_state)
+
+            # Record final states
+            for final_state in final_states:
+                print(final_state, file=intent_file)
+
+            intent_fsts[intent_name] = intent_file.getvalue()
+
+    return intent_fsts
