@@ -1,10 +1,11 @@
 """Test cases for recognition functions."""
 import unittest
+from pathlib import Path
 
 from .ini_jsgf import parse_ini
 from .jsgf_graph import intents_to_graph
 from .fsticuffs import recognize
-from .intent import Recognition, Intent
+from .intent import Recognition, Intent, Entity
 
 
 class StrictTestCase(unittest.TestCase):
@@ -240,6 +241,41 @@ class FuzzyTestCase(unittest.TestCase):
                     confidence=(1 - (0.1 / 4)),
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
+                )
+            ],
+        )
+
+
+# -----------------------------------------------------------------------------
+
+
+class TimerTestCase(unittest.TestCase):
+    """Test cases for timer example."""
+
+    def setUp(self):
+        # Load timer example
+        self.graph = intents_to_graph(parse_ini(Path("etc") / "timer.ini"))
+
+    def test_strict_simple(self):
+        """Check exact parse."""
+        recognitions = recognize("set a timer for ten minutes", self.graph, fuzzy=False)
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertTrue(recognition.intent)
+
+        self.assertEqual(
+            recognition.intent.entities,
+            [
+                Entity(
+                    entity="minutes",
+                    value="10",
+                    raw_value="ten",
+                    start=16,
+                    raw_start=16,
+                    raw_end=19,
+                    end=18,
+                    tokens=["10"],
+                    raw_tokens=["ten"],
                 )
             ],
         )

@@ -60,46 +60,49 @@ def parse_ini(
     elif isinstance(source, Path):
         source = open(source, "r")
 
-    # Create ini parser
-    config = configparser.ConfigParser(
-        allow_no_value=True, strict=False, delimiters=["="]
-    )
-
-    config.optionxform = str  # case sensitive
-    config.read_file(source)
-
-    _LOGGER.debug("Loaded ini file")
-
     # Process configuration sections
     sentences: typing.Dict[
         str, typing.List[typing.Union[Sentence, Rule]]
     ] = defaultdict(list)
 
-    # Parse each section (intent)
-    for sec_name in config.sections():
-        # Exclude if not in whitelist.
-        # Empty whitelist means keep all.
-        if (whitelist is not None) and (sec_name not in whitelist):
-            logger.debug("Skipping %s (not in whitelist)", sec_name)
-            continue
+    try:
+        # Create ini parser
+        config = configparser.ConfigParser(
+            allow_no_value=True, strict=False, delimiters=["="]
+        )
 
-        # Processs settings (sentences/rules)
-        for k, v in config[sec_name].items():
-            if v is None:
-                # Collect non-valued keys as sentences
-                sentence = k.strip()
+        config.optionxform = str  # case sensitive
+        config.read_file(source)
 
-                # Fix \[ escape sequence
-                sentence = re.sub(r"\\\[", "[", sentence)
+        _LOGGER.debug("Loaded ini file")
 
-                sentences[sec_name].append(Sentence.parse(sentence))
-            else:
-                # Collect key/value pairs as JSGF rules
-                rule = "<{0}> = ({1});".format(k.strip(), v.strip())
+        # Parse each section (intent)
+        for sec_name in config.sections():
+            # Exclude if not in whitelist.
+            # Empty whitelist means keep all.
+            if (whitelist is not None) and (sec_name not in whitelist):
+                logger.debug("Skipping %s (not in whitelist)", sec_name)
+                continue
 
-                # Fix \[ escape sequence
-                rule = re.sub(r"\\\[", "[", rule)
+            # Processs settings (sentences/rules)
+            for k, v in config[sec_name].items():
+                if v is None:
+                    # Collect non-valued keys as sentences
+                    sentence = k.strip()
 
-                sentences[sec_name].append(Rule.parse(rule))
+                    # Fix \[ escape sequence
+                    sentence = re.sub(r"\\\[", "[", sentence)
+
+                    sentences[sec_name].append(Sentence.parse(sentence))
+                else:
+                    # Collect key/value pairs as JSGF rules
+                    rule = "<{0}> = ({1});".format(k.strip(), v.strip())
+
+                    # Fix \[ escape sequence
+                    rule = re.sub(r"\\\[", "[", rule)
+
+                    sentences[sec_name].append(Rule.parse(rule))
+    finally:
+        source.close()
 
     return sentences
