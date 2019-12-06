@@ -213,6 +213,37 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
         )
 
+    def test_intent_filter(self):
+        """Identical sentences from two different intents with filter."""
+        intents = parse_ini(
+            """
+        [TestIntent1]
+        this is a test
+
+        [TestIntent2]
+        this is a test
+        """
+        )
+
+        graph = intents_to_graph(intents)
+        intent_filter = lambda name: name == "TestIntent1"
+
+        # Should produce a recognition for first intent only
+        recognitions = recognize("this is a test", graph, intent_filter=intent_filter)
+        self.assertEqual(
+            recognitions,
+            [
+                Recognition(
+                    intent=Intent(name="TestIntent1"),
+                    text="this is a test",
+                    raw_text="this is a test",
+                    confidence=1,
+                    tokens=["this", "is", "a", "test"],
+                    raw_tokens=["this", "is", "a", "test"],
+                )
+            ],
+        )
+
     def test_stop_words(self):
         """Check sentence with stop words."""
         intents = parse_ini(

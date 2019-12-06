@@ -52,9 +52,10 @@ class Grammar:
 
 def parse_ini(
     source: typing.Union[str, Path, typing.TextIO],
-    whitelist: typing.Optional[typing.List[str]] = None,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]]:
     """Parse multiple JSGF grammars from an ini file."""
+    intent_filter = intent_filter or (lambda x: True)
     if isinstance(source, str):
         source = io.StringIO(source)
     elif isinstance(source, Path):
@@ -78,10 +79,9 @@ def parse_ini(
 
         # Parse each section (intent)
         for sec_name in config.sections():
-            # Exclude if not in whitelist.
-            # Empty whitelist means keep all.
-            if (whitelist is not None) and (sec_name not in whitelist):
-                logger.debug("Skipping %s (not in whitelist)", sec_name)
+            # Exclude if filtered out.
+            if not intent_filter(sec_name):
+                logger.debug("Skipping %s", sec_name)
                 continue
 
             # Processs settings (sentences/rules)

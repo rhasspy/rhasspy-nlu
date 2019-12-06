@@ -15,6 +15,7 @@ def recognize(
     graph: nx.DiGraph,
     fuzzy: bool = True,
     stop_words: typing.Optional[typing.Set[str]] = None,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
     **search_args
 ) -> typing.List[Recognition]:
     """Recognize one or more intents from tokens or a sentence."""
@@ -25,7 +26,13 @@ def recognize(
     if fuzzy:
         # Fuzzy recognition
         best_fuzzy = best_fuzzy_cost(
-            paths_fuzzy(tokens, graph, stop_words=stop_words, **search_args)
+            paths_fuzzy(
+                tokens,
+                graph,
+                stop_words=stop_words,
+                intent_filter=intent_filter,
+                **search_args
+            )
         )
 
         if best_fuzzy:
@@ -42,12 +49,20 @@ def recognize(
             return recognitions
     else:
         # Strict recognition
-        paths = list(paths_strict(tokens, graph, **search_args))
+        paths = list(
+            paths_strict(tokens, graph, intent_filter=intent_filter, **search_args)
+        )
         if (not paths) and stop_words:
             # Try again by excluding stop words
             tokens = [t for t in tokens if t not in stop_words]
             paths = list(
-                paths_strict(tokens, graph, exclude_tokens=stop_words, **search_args)
+                paths_strict(
+                    tokens,
+                    graph,
+                    exclude_tokens=stop_words,
+                    intent_filter=intent_filter,
+                    **search_args
+                )
             )
 
         recognitions = []
@@ -70,8 +85,14 @@ def paths_strict(
     graph: nx.DiGraph,
     exclude_tokens: typing.Optional[typing.Set[str]] = None,
     max_paths: typing.Optional[int] = None,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> typing.Iterable[typing.List[int]]:
     """Match a single path from the graph exactly if possible."""
+    if not tokens:
+        return []
+
+    intent_filter = intent_filter or (lambda x: True)
+
     # node -> attrs
     n_data = graph.nodes(data=True)
 
@@ -99,6 +120,13 @@ def paths_strict(
             next_tokens = list(current_tokens)
 
             ilabel = edge_data.get("ilabel", "")
+            olabel = edge_data.get("olabel", "")
+
+            if olabel.startswith("__label__"):
+                intent_name = olabel[9:]
+                if not intent_filter(intent_name):
+                    # Skip intent
+                    continue
 
             if ilabel:
                 if next_tokens:
@@ -118,6 +146,9 @@ def paths_strict(
 
             # Continue search
             node_queue.append((next_node, next_path, next_tokens))
+
+    # No results
+    return []
 
 
 # -----------------------------------------------------------------------------
@@ -183,11 +214,13 @@ def paths_fuzzy(
     cost_function: typing.Optional[
         typing.Callable[[FuzzyCostInput], FuzzyCostOutput]
     ] = None,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> typing.Dict[str, typing.List[FuzzyResult]]:
     """Do less strict matching using a cost function and optional stop words."""
     if not tokens:
         return []
 
+    intent_filter = intent_filter or (lambda x: True)
     cost_function = cost_function or default_fuzzy_cost
     stop_words: Set[str] = stop_words or set()
 
@@ -268,6 +301,9 @@ def paths_fuzzy(
             if out_label:
                 if out_label.startswith("__label__"):
                     next_intent = out_label[9:]
+                    if not intent_filter(next_intent):
+                        # Skip intent
+                        continue
                 elif not out_label.startswith("__"):
                     next_out_count += 1
 

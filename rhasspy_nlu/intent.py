@@ -60,3 +60,7 @@ class Recognition:
     recognize_seconds: float = attr.ib(default=0)
     tokens: typing.List[str] = attr.ib(factory=list)
     raw_tokens: typing.List[str] = attr.ib(factory=list)
+
+    def asdict(self) -> typing.Dict[str, typing.Any]:
+        """Convert to dictionary."""
+        return attr.asdict(self)
