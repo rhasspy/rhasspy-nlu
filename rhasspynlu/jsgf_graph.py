@@ -255,6 +255,19 @@ def intents_to_graph(
 # -----------------------------------------------------------------------------
 
 
+def graph_to_json(graph: nx.DiGraph) -> typing.Dict[str, typing.Any]:
+    """Convert to dict suitable for JSON serialization."""
+    return nx.readwrite.json_graph.node_link_data(graph)
+
+
+def json_to_graph(json_dict: typing.Dict[str, typing.Any]) -> nx.DiGraph:
+    """Convert from deserialized JSON dict to graph."""
+    return nx.readwrite.json_graph.node_link_graph(json_dict)
+
+
+# -----------------------------------------------------------------------------
+
+
 @attr.s
 class GraphFsts:
     intent_fsts: typing.Dict[str, str] = attr.ib()
