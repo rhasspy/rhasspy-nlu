@@ -195,7 +195,7 @@ def expression_to_graph(
 
 def intents_to_graph(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
-    replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
+    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
 ) -> nx.DiGraph:
     """Convert sentences/rules grouped by intent into a directed graph."""
     # Slots or rules
