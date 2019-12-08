@@ -2,8 +2,8 @@
 import io
 import unittest
 
-from .ini_jsgf import parse_ini
-from .jsgf import Sentence, Word, Sequence, SequenceType
+from rhasspynlu.ini_jsgf import parse_ini
+from rhasspynlu.jsgf import Sentence, Word, Sequence, SequenceType
 
 
 class IniJsgfTestCase(unittest.TestCase):

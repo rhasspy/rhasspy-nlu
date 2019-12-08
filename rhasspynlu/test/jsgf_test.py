@@ -1,7 +1,7 @@
 """Test cases for JSGF parser."""
 import unittest
 
-from .jsgf import (
+from rhasspynlu.jsgf import (
     Sentence,
     Word,
     Sequence,
@@ -121,7 +121,6 @@ class AdvancedJsgfTestCase(unittest.TestCase):
     def test_optional_alternative(self):
         """Combined optional and alternative."""
         s = Sentence.parse("this [is | a] test")
-        print(s)
         self.assertEqual(
             s.items,
             [
