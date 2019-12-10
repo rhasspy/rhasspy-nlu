@@ -1,7 +1,6 @@
 """
 Data structures for intent recognition.
 """
-from abc import abstractmethod, ABC
 from enum import Enum
 import typing
 

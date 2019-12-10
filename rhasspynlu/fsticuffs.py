@@ -1,11 +1,11 @@
 """Recognition functions for sentences using JSGF graphs."""
-from collections import defaultdict, deque
+from collections import defaultdict
 import typing
 
 import attr
 import networkx as nx
 
-from .intent import Entity, Intent, Recognition, RecognitionResult, TagInfo
+from .intent import Entity, Intent, Recognition, RecognitionResult
 
 # -----------------------------------------------------------------------------
 
@@ -222,7 +222,7 @@ def paths_fuzzy(
 
     intent_filter = intent_filter or (lambda x: True)
     cost_function = cost_function or default_fuzzy_cost
-    stop_words: Set[str] = stop_words or set()
+    stop_words: typing.Set[str] = stop_words or set()
 
     # node -> attrs
     n_data = graph.nodes(data=True)
@@ -407,9 +407,8 @@ def path_to_recognition(
                 last_entity = entity_stack[-1]
                 last_entity.raw_tokens.append(word)
 
-        # Get ilabel/olabel
+        # Get output label
         edge_data = graph[last_node][next_node]
-        ilabel = edge_data.get("ilabel", "")
         olabel = edge_data.get("olabel", "")
 
         if olabel:

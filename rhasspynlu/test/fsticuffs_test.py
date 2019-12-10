@@ -226,7 +226,9 @@ class FuzzyTestCase(unittest.TestCase):
         )
 
         graph = intents_to_graph(intents)
-        intent_filter = lambda name: name == "TestIntent1"
+
+        def intent_filter(name):
+            return name == "TestIntent1"
 
         # Should produce a recognition for first intent only
         recognitions = recognize("this is a test", graph, intent_filter=intent_filter)

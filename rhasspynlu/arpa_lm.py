@@ -1,6 +1,5 @@
 """Utilities for ARPA language models."""
 import logging
-import shlex
 import subprocess
 import typing
 from pathlib import Path

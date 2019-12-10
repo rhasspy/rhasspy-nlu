@@ -340,7 +340,7 @@ def parse_expression(
 
 def get_expression_count(
     expression: Expression,
-    replacements: typing.Optional[typing.Dict[str, Sentence]] = None,
+    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
 ) -> int:
     """Get the number of possible sentences in an expression."""
     if isinstance(expression, Sequence):

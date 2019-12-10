@@ -81,7 +81,7 @@ def parse_ini(
         for sec_name in config.sections():
             # Exclude if filtered out.
             if not intent_filter(sec_name):
-                logger.debug("Skipping %s", sec_name)
+                _LOGGER.debug("Skipping %s", sec_name)
                 continue
 
             # Processs settings (sentences/rules)
@@ -111,27 +111,53 @@ def parse_ini(
 # -----------------------------------------------------------------------------
 
 
-def get_intent_counts(
+def split_rules(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
-    replacements: typing.Optional[typing.Dict[str, Sentence]] = None,
-):
-    """Get number of possible sentences for each intent."""
-    replacements = replacements or {}
-    intent_counts = defaultdict(int)
+    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+) -> typing.Tuple[typing.Dict[str, Sentence], typing.Dict[str, typing.List[Sentence]]]:
+    """Seperate out rules and sentences from all intents."""
+    sentences: typing.Dict[str, typing.List[Sentence]] = {}
+    replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
 
-    for intent, intent_exprs in intents.items():
-        sentences: typing.List[Sentence] = []
+    for intent_name, intent_exprs in intents.items():
+        sentences[intent_name] = []
 
         # Extract rules and fold them into replacements
         for expr in intent_exprs:
             if isinstance(expr, Rule):
-                replacements[f"<{expr.rule_name}>"] = [expr.rule_body]
-            else:
-                sentences.append(expr)
+                # Rule
+                rule_name = expr.rule_name
+                if "." not in rule_name:
+                    # Add local replacement
+                    replacements[f"<{rule_name}>"] = [expr.rule_body]
 
+                    # Use fully qualified name too
+                    rule_name = f"{intent_name}.{rule_name}"
+
+                # Surround with <>
+                rule_name = f"<{rule_name}>"
+                replacements[rule_name] = [expr.rule_body]
+            else:
+                sentences[intent_name].append(expr)
+
+    return sentences, replacements
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_intent_counts(
+    intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
+    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+):
+    """Get number of possible sentences for each intent."""
+    sentences, replacements = split_rules(intents, replacements)
+    intent_counts = defaultdict(int)
+
+    for intent_name, intent_sentences in intents.items():
         # Compute counts for all sentences
-        intent_counts[intent] = sum(
-            get_expression_count(s, replacements=replacements) for s in sentences
+        intent_counts[intent_name] = sum(
+            get_expression_count(s, replacements) for s in intent_sentences
         )
 
     return intent_counts

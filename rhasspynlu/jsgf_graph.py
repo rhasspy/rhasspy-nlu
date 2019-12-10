@@ -1,7 +1,6 @@
 """Utilities to convert JSGF sentences to directed graphs."""
-from collections import defaultdict
-from enum import Enum
 import io
+import math
 import typing
 from pathlib import Path
 
@@ -20,6 +19,8 @@ from .jsgf import (
     Taggable,
     Substitutable,
 )
+
+from .ini_jsgf import split_rules, get_intent_counts
 
 # -----------------------------------------------------------------------------
 
@@ -196,27 +197,28 @@ def expression_to_graph(
 def intents_to_graph(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+    add_intent_weights: bool = True,
 ) -> nx.DiGraph:
     """Convert sentences/rules grouped by intent into a directed graph."""
-    # Slots or rules
-    replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
+    sentences, replacements = split_rules(intents, replacements)
+    num_intents = len(sentences)
+    intent_weights = {}
 
-    # Strip rules from intents
-    sentences: typing.Dict[str, typing.List[Sentence]] = defaultdict(list)
-    for intent_name, intent_items in intents.items():
-        for item in intent_items:
-            if isinstance(item, Rule):
-                # Rule
-                rule_name = item.rule_name
-                if "." not in rule_name:
-                    rule_name = f"{intent_name}.{rule_name}"
+    if add_intent_weights:
+        # Count number of posssible sentences per intent
+        intent_counts = get_intent_counts(sentences, replacements)
+        num_sentences_lcm = lcm(*intent_counts.values())
+        intent_weights = {
+            intent_name: (num_sentences_lcm // intent_counts.get(intent_name))
+            for intent_name in sentences
+        }
 
-                # Surround with <>
-                rule_name = f"<{rule_name}>"
-                replacements[rule_name] = [item.rule_body]
-            else:
-                # Sentence
-                sentences[intent_name].append(item)
+        # Normalize
+        weight_sum = sum(intent_weights.values())
+        for intent_name in intent_weights:
+            intent_weights[intent_name] /= weight_sum
+    else:
+        intent_counts = {}
 
     # Create initial graph
     graph: nx.DiGraph = nx.DiGraph()
@@ -229,7 +231,20 @@ def intents_to_graph(
         intent_state = len(graph)
         olabel = f"__label__{intent_name}"
         label = f":{olabel}"
-        graph.add_edge(root_state, intent_state, ilabel="", olabel=olabel, label=label)
+
+        edge_kwargs = {}
+        if add_intent_weights and (num_intents > 1):
+            edge_kwargs["sentene_count"] = intent_counts.get(intent_name, 1)
+            edge_kwargs["weight"] = intent_weights.get(intent_name, 0)
+
+        graph.add_edge(
+            root_state,
+            intent_state,
+            ilabel="",
+            olabel=olabel,
+            label=label,
+            **edge_kwargs,
+        )
 
         for sentence in intent_sentences:
             # Insert all sentences for this intent
@@ -276,7 +291,9 @@ class GraphFsts:
     output_symbols: typing.Dict[str, int] = attr.ib()
 
 
-def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> GraphFsts:
+def graph_to_fsts(
+    graph: nx.DiGraph, eps="<eps>", weight_key="weight", default_weight=0
+) -> GraphFsts:
     """Convert graph to OpenFST text format, one per intent."""
     intent_fsts: typing.Dict[str, str] = {}
     symbols: typing.Dict[str, int] = {eps: 0}
@@ -319,7 +336,17 @@ def graph_to_fsts(graph: nx.DiGraph, eps="<eps>") -> GraphFsts:
                 symbols[olabel] = osymbol
                 output_symbols[olabel] = osymbol
 
-                print(f"{from_state} {to_state} {ilabel} {olabel}", file=intent_file)
+                if weight_key:
+                    weight = edge_data.get(weight_key, default_weight)
+                    print(
+                        f"{from_state} {to_state} {ilabel} {olabel} {weight}",
+                        file=intent_file,
+                    )
+                else:
+                    # No weight
+                    print(
+                        f"{from_state} {to_state} {ilabel} {olabel}", file=intent_file
+                    )
 
                 # Check if final state
                 if n_data[from_node].get("final", False):
@@ -373,7 +400,9 @@ class GraphFst:
                 print(symbol, num, file=osymbols_file)
 
 
-def graph_to_fst(graph: nx.DiGraph, eps="<eps>") -> GraphFst:
+def graph_to_fst(
+    graph: nx.DiGraph, eps="<eps>", weight_key="weight", default_weight=0
+) -> GraphFst:
     """Convert graph to OpenFST text format."""
     symbols: typing.Dict[str, int] = {eps: 0}
     input_symbols: typing.Dict[str, int] = {}
@@ -383,6 +412,7 @@ def graph_to_fst(graph: nx.DiGraph, eps="<eps>") -> GraphFst:
     # start state
     start_node: int = [n for n, data in n_data if data.get("start", False)][0]
 
+    # Generate FST text
     with io.StringIO() as fst_file:
         final_states: typing.Set[int] = set()
         state_map: typing.Dict[int, int] = {}
@@ -413,7 +443,14 @@ def graph_to_fst(graph: nx.DiGraph, eps="<eps>") -> GraphFst:
             symbols[olabel] = osymbol
             output_symbols[olabel] = osymbol
 
-            print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
+            if weight_key:
+                weight = edge_data.get(weight_key, default_weight)
+                print(
+                    f"{from_state} {to_state} {ilabel} {olabel} {weight}", file=fst_file
+                )
+            else:
+                # No weight
+                print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
 
             # Check if final state
             if n_data[from_node].get("final", False):
@@ -432,3 +469,18 @@ def graph_to_fst(graph: nx.DiGraph, eps="<eps>") -> GraphFst:
             input_symbols=input_symbols,
             output_symbols=output_symbols,
         )
+
+
+# -----------------------------------------------------------------------------
+
+
+def lcm(*nums: int) -> int:
+    """Returns the least common multiple of the given integers"""
+    if nums:
+        nums_lcm = nums[0]
+        for n in nums[1:]:
+            nums_lcm = (nums_lcm * n) // math.gcd(nums_lcm, n)
+
+        return nums_lcm
+
+    return 1
