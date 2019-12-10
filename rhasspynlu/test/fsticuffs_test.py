@@ -28,10 +28,9 @@ class StrictTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent"),
+                    intent=Intent(name="TestIntent", confidence=1),
                     text="this is a test",
                     raw_text="this is a test",
-                    confidence=1,
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 )
@@ -65,10 +64,9 @@ class StrictTestCase(unittest.TestCase):
         self.assertEqual(len(recognitions), 2)
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent1"),
+                intent=Intent(name="TestIntent1", confidence=1),
                 text="this is a test",
                 raw_text="this is a test",
-                confidence=1,
                 tokens=["this", "is", "a", "test"],
                 raw_tokens=["this", "is", "a", "test"],
             ),
@@ -76,10 +74,9 @@ class StrictTestCase(unittest.TestCase):
         )
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent2"),
+                intent=Intent(name="TestIntent2", confidence=1),
                 text="this is a test",
                 raw_text="this is a test",
-                confidence=1,
                 tokens=["this", "is", "a", "test"],
                 raw_tokens=["this", "is", "a", "test"],
             ),
@@ -109,10 +106,9 @@ class StrictTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent"),
+                    intent=Intent(name="TestIntent", confidence=1),
                     text="this is a test",
                     raw_text="this is a test",
-                    confidence=1,
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 )
@@ -143,10 +139,9 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent"),
+                    intent=Intent(name="TestIntent", confidence=1),
                     text="this is a test",
                     raw_text="this is a test",
-                    confidence=1,
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 )
@@ -159,10 +154,9 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent"),
+                    intent=Intent(name="TestIntent", confidence=(1 - 1 / 4)),
                     text="this is a test",
                     raw_text="this is a test",
-                    confidence=(1 - 1 / 4),
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 )
@@ -192,10 +186,9 @@ class FuzzyTestCase(unittest.TestCase):
         self.assertEqual(len(recognitions), 2)
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent1"),
+                intent=Intent(name="TestIntent1", confidence=1),
                 text="this is a test",
                 raw_text="this is a test",
-                confidence=1,
                 tokens=["this", "is", "a", "test"],
                 raw_tokens=["this", "is", "a", "test"],
             ),
@@ -203,10 +196,9 @@ class FuzzyTestCase(unittest.TestCase):
         )
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent2"),
+                intent=Intent(name="TestIntent2", confidence=1),
                 text="this is a test",
                 raw_text="this is a test",
-                confidence=1,
                 tokens=["this", "is", "a", "test"],
                 raw_tokens=["this", "is", "a", "test"],
             ),
@@ -236,10 +228,9 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent1"),
+                    intent=Intent(name="TestIntent1", confidence=1),
                     text="this is a test",
                     raw_text="this is a test",
-                    confidence=1,
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 )
@@ -260,7 +251,7 @@ class FuzzyTestCase(unittest.TestCase):
         # Lower confidence with no stop words
         recognitions = recognize("this is a abcd test", graph)
         self.assertEqual(len(recognitions), 1)
-        self.assertEqual(recognitions[0].confidence, 1 - (1 / 4))
+        self.assertEqual(recognitions[0].intent.confidence, 1 - (1 / 4))
 
         # Higher confidence with stop words
         recognitions = recognize("this is a abcd test", graph, stop_words=set(["abcd"]))
@@ -268,10 +259,9 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent"),
+                    intent=Intent(name="TestIntent", confidence=(1 - (0.1 / 4))),
                     text="this is a test",
                     raw_text="this is a test",
-                    confidence=(1 - (0.1 / 4)),
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 )
@@ -297,7 +287,7 @@ class TimerTestCase(unittest.TestCase):
         self.assertTrue(recognition.intent)
 
         self.assertEqual(
-            recognition.intent.entities,
+            recognition.entities,
             [
                 Entity(
                     entity="minutes",

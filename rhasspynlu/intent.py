@@ -27,7 +27,7 @@ class Intent:
     """Named intention with entities and slots."""
 
     name: str = attr.ib()
-    entities: typing.List[Entity] = attr.ib(factory=list)
+    confidence: float = attr.ib(default=0)
 
 
 @attr.s
@@ -53,9 +53,9 @@ class Recognition:
     """Output of intent recognition."""
 
     intent: typing.Optional[Intent] = attr.ib(default=None)
+    entities: typing.List[Entity] = attr.ib(factory=list)
     text: str = attr.ib(default="")
     raw_text: str = attr.ib(default="")
-    confidence: float = attr.ib(default=0)
     recognize_seconds: float = attr.ib(default=0)
     tokens: typing.List[str] = attr.ib(factory=list)
     raw_tokens: typing.List[str] = attr.ib(factory=list)

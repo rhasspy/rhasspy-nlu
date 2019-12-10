@@ -379,7 +379,7 @@ def path_to_recognition(
         return RecognitionResult.FAILURE, None
 
     node_attrs = graph.nodes(data=True)
-    recognition = Recognition(intent=Intent(""), confidence=1.0)
+    recognition = Recognition(intent=Intent("", confidence=1.0))
 
     # Text index for substituted and raw text
     sub_index = 0
@@ -443,7 +443,7 @@ def path_to_recognition(
                 last_entity.raw_value = " ".join(last_entity.raw_tokens)
 
                 # Add to recognition
-                recognition.intent.entities.append(last_entity)
+                recognition.entities.append(last_entity)
             elif entity_stack:
                 # Add to most recent named entity
                 last_entity = entity_stack[-1]
@@ -464,6 +464,6 @@ def path_to_recognition(
 
     if cost and cost > 0:
         # Set fuzzy confidence
-        recognition.confidence = 1 - (cost / len(recognition.raw_tokens))
+        recognition.intent.confidence = 1 - (cost / len(recognition.raw_tokens))
 
     return RecognitionResult.SUCCESS, recognition

@@ -369,7 +369,7 @@ def get_expression_count(
         )
     elif isinstance(expression, SlotReference):
         # Get substituted sentences for $slot
-        key = f"${expression.rule_name}"
+        key = f"${expression.slot_name}"
         return sum(
             get_expression_count(value, replacements) for value in replacements[key]
         )
