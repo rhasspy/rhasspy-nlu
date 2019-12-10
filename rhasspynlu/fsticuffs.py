@@ -338,6 +338,7 @@ def paths_fuzzy(
 def best_fuzzy_cost(
     intent_symbols_and_costs: typing.Dict[str, typing.List[FuzzyResult]]
 ) -> typing.List[FuzzyResult]:
+    """Return fuzzy results with cost."""
     if not intent_symbols_and_costs:
         return []
 

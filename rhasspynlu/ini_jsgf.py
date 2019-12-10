@@ -154,7 +154,7 @@ def get_intent_counts(
     sentences, replacements = split_rules(intents, replacements)
     intent_counts = defaultdict(int)
 
-    for intent_name, intent_sentences in intents.items():
+    for intent_name, intent_sentences in sentences.items():
         # Compute counts for all sentences
         intent_counts[intent_name] = sum(
             get_expression_count(s, replacements) for s in intent_sentences

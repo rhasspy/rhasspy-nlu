@@ -77,6 +77,7 @@ class Sentence(Sequence):
 
     @classmethod
     def parse(cls, text: str) -> "Sentence":
+        """Parse a single sentence."""
         s = Sentence(text=text)
         parse_expression(s, text)
         return unwrap_sequence(s)
@@ -95,6 +96,7 @@ class Rule:
 
     @classmethod
     def parse(cls, text: str) -> "Rule":
+        """Parse a single rule."""
         # public <RuleName> = rule body;
         # <RuleName> = rule body;
         rule_match = Rule.RULE_DEFINITION.match(text)
@@ -132,6 +134,7 @@ def split_words(text: str) -> typing.Iterable[Expression]:
 
 
 def unwrap_sequence(seq: Sequence) -> Sequence:
+    """Recursively unpack sequences with single items."""
     # Unwrap single child
     while (len(seq.items) == 1) and isinstance(seq.items[0], Sequence):
         item = seq.items[0]
@@ -351,7 +354,8 @@ def get_expression_count(
                 count = count * get_expression_count(sub_item, replacements)
 
             return count
-        elif expression.type == SequenceType.ALTERNATIVE:
+
+        if expression.type == SequenceType.ALTERNATIVE:
             # Counts sum across the alternatives
             return sum(
                 get_expression_count(sub_item, replacements)

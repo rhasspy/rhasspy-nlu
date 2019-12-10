@@ -285,6 +285,7 @@ def json_to_graph(json_dict: typing.Dict[str, typing.Any]) -> nx.DiGraph:
 
 @attr.s
 class GraphFsts:
+    """Result from graph_to_fsts."""
     intent_fsts: typing.Dict[str, str] = attr.ib()
     symbols: typing.Dict[str, int] = attr.ib()
     input_symbols: typing.Dict[str, int] = attr.ib()
@@ -374,6 +375,7 @@ def graph_to_fsts(
 
 @attr.s
 class GraphFst:
+    """Result from graph_to_fst."""
     intent_fst: str = attr.ib()
     symbols: typing.Dict[str, int] = attr.ib()
     input_symbols: typing.Dict[str, int] = attr.ib()
