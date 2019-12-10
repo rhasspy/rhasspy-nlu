@@ -1,4 +1,8 @@
-.PHONY: test
+.PHONY: check test
+
+check:
+	flake8 rhasspynlu/*.py rhasspynlu/test/*.py
+	pylint rhasspynlu/*.py rhasspynlu/test/*.py
 
 test:
 	python3 -m unittest \
