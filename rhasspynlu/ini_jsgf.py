@@ -9,7 +9,7 @@ from collections import defaultdict
 
 import attr
 
-from .jsgf import Rule, Sentence
+from .jsgf import Rule, Sentence, get_expression_count
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,3 +106,32 @@ def parse_ini(
         source.close()
 
     return sentences
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_intent_counts(
+    intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
+    replacements: typing.Optional[typing.Dict[str, Sentence]] = None,
+):
+    """Get number of possible sentences for each intent."""
+    replacements = replacements or {}
+    intent_counts = defaultdict(int)
+
+    for intent, intent_exprs in intents.items():
+        sentences: typing.List[Sentence] = []
+
+        # Extract rules and fold them into replacements
+        for expr in intent_exprs:
+            if isinstance(expr, Rule):
+                replacements[f"<{expr.rule_name}>"] = [expr.rule_body]
+            else:
+                sentences.append(expr)
+
+        # Compute counts for all sentences
+        intent_counts[intent] = sum(
+            get_expression_count(s, replacements=replacements) for s in sentences
+        )
+
+    return intent_counts

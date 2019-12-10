@@ -2,7 +2,7 @@
 import io
 import unittest
 
-from rhasspynlu.ini_jsgf import parse_ini
+from rhasspynlu.ini_jsgf import parse_ini, get_intent_counts
 from rhasspynlu.jsgf import Sentence, Word, Sequence, SequenceType
 
 
@@ -71,6 +71,28 @@ class IniJsgfTestCase(unittest.TestCase):
                             ],
                         )
                     ]
+                },
+            )
+
+    def test_intent_counts(self):
+        """Test sentence counts by intent."""
+        ini_text = """
+        [TestIntent1]
+        this [is] [a] test
+        this is [another] test
+
+        [TestIntent2]
+        this is (my | your| another) test
+        """
+
+        with io.StringIO(ini_text) as ini_file:
+            intents = parse_ini(ini_file)
+            intent_counts = get_intent_counts(intents)
+            self.assertEqual(
+                intent_counts,
+                {
+                    "TestIntent1": (1 * 2 * 2 * 1) + (1 * 1 * 2 * 1),
+                    "TestIntent2": (1 * 1 * 3 * 1),
                 },
             )
 

@@ -333,3 +333,44 @@ def parse_expression(
         return None
 
     return next_index
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_expression_count(
+    expression: Expression,
+    replacements: typing.Optional[typing.Dict[str, Sentence]] = None,
+) -> int:
+    """Get the number of possible sentences in an expression."""
+    if isinstance(expression, Sequence):
+        if expression.type == SequenceType.GROUP:
+            # Counts multiply down the sequence
+            count = 1
+            for sub_item in expression.items:
+                count = count * get_expression_count(sub_item, replacements)
+
+            return count
+        elif expression.type == SequenceType.ALTERNATIVE:
+            # Counts sum across the alternatives
+            return sum(
+                get_expression_count(sub_item, replacements)
+                for sub_item in expression.items
+            )
+    elif isinstance(expression, RuleReference):
+        # Get substituted sentences for <rule>
+        key = f"<{expression.rule_name}>"
+        return sum(
+            get_expression_count(value, replacements) for value in replacements[key]
+        )
+    elif isinstance(expression, SlotReference):
+        # Get substituted sentences for $slot
+        key = f"${expression.rule_name}"
+        return sum(
+            get_expression_count(value, replacements) for value in replacements[key]
+        )
+    elif isinstance(expression, Word):
+        # Single word
+        return 1
+
+    return 0

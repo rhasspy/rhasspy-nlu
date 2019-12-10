@@ -9,6 +9,7 @@ from rhasspynlu.jsgf import (
     RuleReference,
     SlotReference,
     Tag,
+    get_expression_count,
 )
 
 
@@ -110,6 +111,12 @@ class BasicJsgfTestCase(unittest.TestCase):
                 Word(""),
             ],
         )
+
+    def test_expression_count(self):
+        """Test counting number of expressions."""
+        s = Sentence.parse("[this] [is] [a] [test]")
+        expected_count = 2 * 2 * 2 * 2
+        self.assertEqual(get_expression_count(s), expected_count)
 
 
 # -----------------------------------------------------------------------------
