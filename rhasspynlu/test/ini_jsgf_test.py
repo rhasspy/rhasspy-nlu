@@ -1,8 +1,8 @@
 """Test cases for ini/JSGF grammar parser."""
 import unittest
 
-from rhasspynlu.ini_jsgf import parse_ini, get_intent_counts
-from rhasspynlu.jsgf import Sentence, Word, Sequence, SequenceType
+from rhasspynlu.ini_jsgf import parse_ini, get_intent_counts, split_rules
+from rhasspynlu.jsgf import Sentence, Word, Sequence, SequenceType, walk_expression
 
 
 class IniJsgfTestCase(unittest.TestCase):
@@ -128,6 +128,47 @@ class IniJsgfTestCase(unittest.TestCase):
                     )
                 ]
             },
+        )
+
+    def test_walk(self):
+        """Test Expression.walk with rule and slot reference."""
+        ini_text = """
+        [SetAlarm]
+        minutes = $minute minutes
+        set alarm for <minutes>
+        """
+
+        intents = parse_ini(ini_text)
+        sentences, replacements = split_rules(intents)
+        replacements["$minute"] = [Sentence.parse("2 | 3")]
+
+        def num2words(word):
+            if not isinstance(word, Word):
+                return
+
+            try:
+                n = int(word.text)
+                if n == 2:
+                    word.text = "two"
+                    word.substitution = "2"
+                elif n == 3:
+                    word.text = "three"
+                    word.substitution = "3"
+            except ValueError:
+                pass
+
+        for s in sentences["SetAlarm"]:
+            walk_expression(s, num2words, replacements)
+
+        # Verify minute digits were replaced
+        minute = replacements["$minute"][0]
+        self.assertEqual(
+            minute,
+            Sentence(
+                text="2 | 3",
+                type=SequenceType.ALTERNATIVE,
+                items=[Word("two", substitution="2"), Word("three", substitution="3")],
+            ),
         )
 
 

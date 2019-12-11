@@ -113,14 +113,31 @@ class Rule:
 # -----------------------------------------------------------------------------
 
 
-def walk_expression(expression: Expression, visit: typing.Callable[[Expression], None]):
+def walk_expression(
+    expression: Expression,
+    visit: typing.Callable[[Expression], bool],
+    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Expression]]] = None,
+):
     """Recursively visit nodes in expression."""
-    visit(expression)
+    result = visit(expression)
+
+    # Break on explicit False
+    if (result is not None) and (not result):
+        return
+
     if isinstance(expression, Sequence):
         for item in expression.items:
-            walk_expression(item, visit)
+            walk_expression(item, visit, replacements)
     elif isinstance(expression, Rule):
-        walk_expression(expression.rule_body, visit)
+        walk_expression(expression.rule_body, visit, replacements)
+    elif isinstance(expression, RuleReference):
+        key = f"<{expression.rule_name}>"
+        for item in replacements[key]:
+            walk_expression(item, visit, replacements)
+    elif isinstance(expression, SlotReference):
+        key = f"${expression.slot_name}"
+        for item in replacements[key]:
+            walk_expression(item, visit, replacements)
 
 
 # -----------------------------------------------------------------------------
