@@ -252,9 +252,12 @@ def parse_expression(
                 optional_seq = unwrap_sequence(optional_seq)
                 optional = Sequence(type=SequenceType.ALTERNATIVE)
                 if optional_seq.items:
-                    if len(optional_seq.items) == 1:
-                        # Unwrap inner sequence
-                        optional.items.append(optional_seq.items[0])
+                    first_item = optional_seq.items[0]
+
+                    if (len(optional_seq.items) == 1) and (not optional_seq.tag) and (not optional_seq.substitution):
+                        # Unpack inner item
+                        inner_item = optional_seq.items[0]
+                        optional.items.append(inner_item)
                     elif optional_seq.type == SequenceType.ALTERNATIVE:
                         # Unwrap inner alternative
                         optional.items.extend(optional_seq.items)
