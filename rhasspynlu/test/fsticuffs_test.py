@@ -396,7 +396,7 @@ class MiscellaneousTestCase(unittest.TestCase):
 
 
 def zero_times(recognitions):
-    # Set times to zero so they can be easily compared in assertions
+    """Set times to zero so they can be easily compared in assertions"""
     for recognition in recognitions:
         recognition.recognize_seconds = 0
 

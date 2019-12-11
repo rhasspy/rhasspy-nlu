@@ -263,8 +263,6 @@ def parse_expression(
                 optional_seq = unwrap_sequence(optional_seq)
                 optional = Sequence(type=SequenceType.ALTERNATIVE)
                 if optional_seq.items:
-                    first_item = optional_seq.items[0]
-
                     if (
                         (len(optional_seq.items) == 1)
                         and (not optional_seq.tag)
