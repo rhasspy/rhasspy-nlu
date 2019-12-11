@@ -53,6 +53,7 @@ class Grammar:
 def parse_ini(
     source: typing.Union[str, Path, typing.TextIO],
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
+    sentence_transform: typing.Callable[[str], str] = None,
 ) -> typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]]:
     """Parse multiple JSGF grammars from an ini file."""
     intent_filter = intent_filter or (lambda x: True)
@@ -93,10 +94,20 @@ def parse_ini(
                     # Fix \[ escape sequence
                     sentence = re.sub(r"\\\[", "[", sentence)
 
+                    if sentence_transform:
+                        # Do transform
+                        sentence = sentence_transform(sentence)
+
                     sentences[sec_name].append(Sentence.parse(sentence))
                 else:
+                    sentence = v.strip()
+
+                    if sentence_transform:
+                        # Do transform
+                        sentence = sentence_transform(sentence)
+
                     # Collect key/value pairs as JSGF rules
-                    rule = "<{0}> = ({1});".format(k.strip(), v.strip())
+                    rule = "<{0}> = ({1});".format(k.strip(), sentence)
 
                     # Fix \[ escape sequence
                     rule = re.sub(r"\\\[", "[", rule)
