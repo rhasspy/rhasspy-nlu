@@ -119,6 +119,8 @@ def walk_expression(expression: Expression, visit: typing.Callable[[Expression],
     if isinstance(expression, Sequence):
         for item in expression.items:
             walk_expression(item, visit)
+    elif isinstance(expression, Rule):
+        walk_expression(expression.rule_body, visit)
 
 
 # -----------------------------------------------------------------------------
