@@ -113,6 +113,17 @@ class Rule:
 # -----------------------------------------------------------------------------
 
 
+def walk_expression(expression: Expression, visit: typing.Callable[[Expression], None]):
+    """Recursively visit nodes in expression."""
+    visit(expression)
+    if isinstance(expression, Sequence):
+        for item in expression.items:
+            walk_expression(item, visit)
+
+
+# -----------------------------------------------------------------------------
+
+
 def split_words(text: str) -> typing.Iterable[Expression]:
     """Split words by whitespace. Detect slot references and substitutions."""
     for token in re.split(r"\s+", text):
@@ -254,7 +265,11 @@ def parse_expression(
                 if optional_seq.items:
                     first_item = optional_seq.items[0]
 
-                    if (len(optional_seq.items) == 1) and (not optional_seq.tag) and (not optional_seq.substitution):
+                    if (
+                        (len(optional_seq.items) == 1)
+                        and (not optional_seq.tag)
+                        and (not optional_seq.substitution)
+                    ):
                         # Unpack inner item
                         inner_item = optional_seq.items[0]
                         optional.items.append(inner_item)

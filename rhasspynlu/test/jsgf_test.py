@@ -10,6 +10,7 @@ from rhasspynlu.jsgf import (
     SlotReference,
     Tag,
     get_expression_count,
+    walk_expression
 )
 
 
@@ -323,6 +324,40 @@ class OtherJsgfTestCase(unittest.TestCase):
                     tag=Tag(tag_text="light_name", substitution="den_overhead"),
                 ),
             ],
+        )
+
+    def test_walk(self):
+        """Test Expression.walk."""
+        s = Sentence.parse("set alarm for (2 | 3) minutes")
+        def num2words(word):
+            if not isinstance(word, Word):
+                return
+
+            try:
+                n = int(word.text)
+                if n == 2:
+                    word.text = "two"
+                    word.substitution = "2"
+                elif n == 3:
+                    word.text = "three"
+                    word.substitution = "3"
+            except ValueError:
+                pass
+
+        walk_expression(s, num2words)
+        self.assertEqual(
+            s.items,
+            [
+                Word("set"),
+                Word("alarm"),
+                Word("for"),
+                Sequence(
+                    text="2 | 3",
+                    type=SequenceType.ALTERNATIVE,
+                    items=[Word("two", substitution="2"), Word("three", substitution="3")],
+                ),
+                Word("minutes")
+            ]
         )
 
 

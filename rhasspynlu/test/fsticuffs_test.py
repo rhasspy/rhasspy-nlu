@@ -24,7 +24,7 @@ class StrictTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Exact
-        recognitions = recognize("this is a test", graph, fuzzy=False)
+        recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
         self.assertEqual(
             recognitions,
             [
@@ -39,11 +39,11 @@ class StrictTestCase(unittest.TestCase):
         )
 
         # Too many tokens (lower confidence)
-        recognitions = recognize("this is a bad test", graph, fuzzy=False)
+        recognitions = zero_times(recognize("this is a bad test", graph, fuzzy=False))
         self.assertFalse(recognitions)
 
         # Too few tokens (failure)
-        recognitions = recognize("this is a", graph, fuzzy=False)
+        recognitions = zero_times(recognize("this is a", graph, fuzzy=False))
         self.assertFalse(recognitions)
 
     def test_multiple_sentences(self):
@@ -61,7 +61,7 @@ class StrictTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Should produce a recognition for each intent
-        recognitions = recognize("this is a test", graph, fuzzy=False)
+        recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
         self.assertEqual(len(recognitions), 2)
         self.assertIn(
             Recognition(
@@ -96,12 +96,14 @@ class StrictTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Failure without stop words
-        recognitions = recognize("this is a abcd test", graph, fuzzy=False)
+        recognitions = zero_times(recognize("this is a abcd test", graph, fuzzy=False))
         self.assertFalse(recognitions)
 
         # Success with stop words
-        recognitions = recognize(
-            "this is a abcd test", graph, stop_words=set(["abcd"]), fuzzy=False
+        recognitions = zero_times(
+            recognize(
+                "this is a abcd test", graph, stop_words=set(["abcd"]), fuzzy=False
+            )
         )
         self.assertEqual(
             recognitions,
@@ -135,7 +137,7 @@ class FuzzyTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Exact
-        recognitions = recognize("this is a test", graph)
+        recognitions = zero_times(recognize("this is a test", graph))
         self.assertEqual(
             recognitions,
             [
@@ -150,7 +152,7 @@ class FuzzyTestCase(unittest.TestCase):
         )
 
         # Too many tokens (lower confidence)
-        recognitions = recognize("this is a bad test", graph)
+        recognitions = zero_times(recognize("this is a bad test", graph))
         self.assertEqual(
             recognitions,
             [
@@ -165,7 +167,7 @@ class FuzzyTestCase(unittest.TestCase):
         )
 
         # Too few tokens (failure)
-        recognitions = recognize("this is a", graph)
+        recognitions = zero_times(recognize("this is a", graph))
         self.assertFalse(recognitions)
 
     def test_multiple_sentences(self):
@@ -183,7 +185,7 @@ class FuzzyTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Should produce a recognition for each intent
-        recognitions = recognize("this is a test", graph)
+        recognitions = zero_times(recognize("this is a test", graph))
         self.assertEqual(len(recognitions), 2)
         self.assertIn(
             Recognition(
@@ -224,7 +226,9 @@ class FuzzyTestCase(unittest.TestCase):
             return name == "TestIntent1"
 
         # Should produce a recognition for first intent only
-        recognitions = recognize("this is a test", graph, intent_filter=intent_filter)
+        recognitions = zero_times(
+            recognize("this is a test", graph, intent_filter=intent_filter)
+        )
         self.assertEqual(
             recognitions,
             [
@@ -250,12 +254,14 @@ class FuzzyTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Lower confidence with no stop words
-        recognitions = recognize("this is a abcd test", graph)
+        recognitions = zero_times(recognize("this is a abcd test", graph))
         self.assertEqual(len(recognitions), 1)
         self.assertEqual(recognitions[0].intent.confidence, 1 - (1 / 4))
 
         # Higher confidence with stop words
-        recognitions = recognize("this is a abcd test", graph, stop_words=set(["abcd"]))
+        recognitions = zero_times(
+            recognize("this is a abcd test", graph, stop_words=set(["abcd"]))
+        )
         self.assertEqual(
             recognitions,
             [
@@ -286,7 +292,7 @@ class FuzzyTestCase(unittest.TestCase):
         graph = intents_to_graph(intents)
 
         # Lower confidence with no stop words
-        recognitions = recognize("this is a test", graph)
+        recognitions = zero_times(recognize("this is a test", graph))
         self.assertEqual(
             recognitions,
             [
@@ -320,7 +326,9 @@ class TimerTestCase(unittest.TestCase):
 
     def test_strict_simple(self):
         """Check exact parse."""
-        recognitions = recognize("set a timer for ten minutes", self.graph, fuzzy=False)
+        recognitions = zero_times(
+            recognize("set a timer for ten minutes", self.graph, fuzzy=False)
+        )
         self.assertEqual(len(recognitions), 1)
         recognition = recognitions[0]
         self.assertTrue(recognition.intent)
@@ -363,8 +371,12 @@ class MiscellaneousTestCase(unittest.TestCase):
 
         graph = intents_to_graph(parse_ini(ini_text), replacements)
 
-        recognitions = recognize(
-            "read me the hound of the baskervilles in the bedroom", graph, fuzzy=False
+        recognitions = zero_times(
+            recognize(
+                "read me the hound of the baskervilles in the bedroom",
+                graph,
+                fuzzy=False,
+            )
         )
         self.assertEqual(len(recognitions), 1)
         recognition = recognitions[0]
@@ -378,3 +390,14 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertIn("zone", entities)
         zone = entities["zone"]
         self.assertEqual(zone.value, "bedroom")
+
+
+# -----------------------------------------------------------------------------
+
+
+def zero_times(recognitions):
+    # Set times to zero so they can be easily compared in assertions
+    for recognition in recognitions:
+        recognition.recognize_seconds = 0
+
+    return recognitions
