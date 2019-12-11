@@ -269,6 +269,44 @@ class FuzzyTestCase(unittest.TestCase):
             ],
         )
 
+    def test_rules(self):
+        """Make sure local and remote rules work."""
+        intents = parse_ini(
+            """
+        [Intent1]
+        rule = a test
+        this is <rule>
+
+        [Intent2]
+        rule = this is
+        <rule> <Intent1.rule>
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        # Lower confidence with no stop words
+        recognitions = recognize("this is a test", graph)
+        self.assertEqual(
+            recognitions,
+            [
+                Recognition(
+                    intent=Intent(name="Intent1", confidence=1),
+                    text="this is a test",
+                    raw_text="this is a test",
+                    tokens=["this", "is", "a", "test"],
+                    raw_tokens=["this", "is", "a", "test"],
+                ),
+                Recognition(
+                    intent=Intent(name="Intent2", confidence=1),
+                    text="this is a test",
+                    raw_text="this is a test",
+                    tokens=["this", "is", "a", "test"],
+                    raw_tokens=["this", "is", "a", "test"],
+                ),
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 
