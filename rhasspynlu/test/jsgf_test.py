@@ -265,6 +265,31 @@ class AdvancedJsgfTestCase(unittest.TestCase):
             ],
         )
 
+    def test_tagged_group_in_optional(self):
+        """Tagged group inside an optional."""
+        s = Sentence.parse("this is a [($test){tag}]")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Word("is"),
+                Word("a"),
+                Sequence(
+                    text="($test){tag}",
+                    type=SequenceType.ALTERNATIVE,
+                    items=[
+                        Sequence(
+                            text="($test){tag}",
+                            type=SequenceType.GROUP,
+                            tag=Tag(tag_text="tag"),
+                            items=[SlotReference(slot_name="test", text="$test")],
+                        ),
+                        Word(""),
+                    ],
+                ),
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 

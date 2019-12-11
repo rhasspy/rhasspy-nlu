@@ -1,5 +1,6 @@
 """Recognition functions for sentences using JSGF graphs."""
 from collections import defaultdict
+import time
 import typing
 
 import attr
@@ -19,6 +20,8 @@ def recognize(
     **search_args
 ) -> typing.List[Recognition]:
     """Recognize one or more intents from tokens or a sentence."""
+    start_time = time.perf_counter()
+
     if isinstance(tokens, str):
         # Assume whitespace separation
         tokens = tokens.split()
@@ -35,6 +38,8 @@ def recognize(
             )
         )
 
+        end_time = time.perf_counter()
+
         if best_fuzzy:
             recognitions = []
 
@@ -44,6 +49,7 @@ def recognize(
                     fuzzy_result.node_path, graph, cost=fuzzy_result.cost
                 )
                 if result == RecognitionResult.SUCCESS:
+                    recognition.recognize_seconds = end_time - start_time
                     recognitions.append(recognition)
 
             return recognitions
@@ -65,10 +71,12 @@ def recognize(
                 )
             )
 
+        end_time = time.perf_counter()
         recognitions = []
         for path in paths:
             result, recognition = path_to_recognition(path, graph)
             if result == RecognitionResult.SUCCESS:
+                recognition.recognize_seconds = end_time - start_time
                 recognitions.append(recognition)
 
         return recognitions

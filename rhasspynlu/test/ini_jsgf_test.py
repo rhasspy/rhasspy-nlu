@@ -1,5 +1,4 @@
 """Test cases for ini/JSGF grammar parser."""
-import io
 import unittest
 
 from rhasspynlu.ini_jsgf import parse_ini, get_intent_counts
@@ -19,30 +18,24 @@ class IniJsgfTestCase(unittest.TestCase):
         this is another test
         """
 
-        with io.StringIO(ini_text) as ini_file:
-            sentences = parse_ini(ini_file)
-            self.assertEqual(
-                sentences,
-                {
-                    "TestIntent1": [
-                        Sentence(
-                            text="this is a test",
-                            items=[Word("this"), Word("is"), Word("a"), Word("test")],
-                        )
-                    ],
-                    "TestIntent2": [
-                        Sentence(
-                            text="this is another test",
-                            items=[
-                                Word("this"),
-                                Word("is"),
-                                Word("another"),
-                                Word("test"),
-                            ],
-                        )
-                    ],
-                },
-            )
+        intents = parse_ini(ini_text)
+        self.assertEqual(
+            intents,
+            {
+                "TestIntent1": [
+                    Sentence(
+                        text="this is a test",
+                        items=[Word("this"), Word("is"), Word("a"), Word("test")],
+                    )
+                ],
+                "TestIntent2": [
+                    Sentence(
+                        text="this is another test",
+                        items=[Word("this"), Word("is"), Word("another"), Word("test")],
+                    )
+                ],
+            },
+        )
 
     def test_escape(self):
         """Test escaped optional."""
@@ -51,28 +44,27 @@ class IniJsgfTestCase(unittest.TestCase):
         \\[this] is a test
         """
 
-        with io.StringIO(ini_text) as ini_file:
-            sentences = parse_ini(ini_file)
-            self.assertEqual(
-                sentences,
-                {
-                    "TestIntent1": [
-                        Sentence(
-                            text="[this] is a test",
-                            items=[
-                                Sequence(
-                                    text="this",
-                                    type=SequenceType.ALTERNATIVE,
-                                    items=[Word("this"), Word("")],
-                                ),
-                                Word("is"),
-                                Word("a"),
-                                Word("test"),
-                            ],
-                        )
-                    ]
-                },
-            )
+        intents = parse_ini(ini_text)
+        self.assertEqual(
+            intents,
+            {
+                "TestIntent1": [
+                    Sentence(
+                        text="[this] is a test",
+                        items=[
+                            Sequence(
+                                text="this",
+                                type=SequenceType.ALTERNATIVE,
+                                items=[Word("this"), Word("")],
+                            ),
+                            Word("is"),
+                            Word("a"),
+                            Word("test"),
+                        ],
+                    )
+                ]
+            },
+        )
 
     def test_intent_counts(self):
         """Test sentence counts by intent."""
@@ -85,16 +77,58 @@ class IniJsgfTestCase(unittest.TestCase):
         this is (my | your| another) test
         """
 
-        with io.StringIO(ini_text) as ini_file:
-            intents = parse_ini(ini_file)
-            intent_counts = get_intent_counts(intents)
-            self.assertEqual(
-                intent_counts,
-                {
-                    "TestIntent1": (1 * 2 * 2 * 1) + (1 * 1 * 2 * 1),
-                    "TestIntent2": (1 * 1 * 3 * 1),
-                },
-            )
+        intents = parse_ini(ini_text)
+        intent_counts = get_intent_counts(intents)
+        self.assertEqual(
+            intent_counts,
+            {
+                "TestIntent1": (1 * 2 * 2 * 1) + (1 * 1 * 2 * 1),
+                "TestIntent2": (1 * 1 * 3 * 1),
+            },
+        )
+
+    def test_transform(self):
+        """Test sentence transform."""
+        ini_text = """
+        [TestIntent1]
+        THIS IS A TEST
+        """
+
+        intents = parse_ini(ini_text, sentence_transform=str.lower)
+        self.assertEqual(
+            intents,
+            {
+                "TestIntent1": [
+                    Sentence(
+                        text="this is a test",
+                        items=[Word("this"), Word("is"), Word("a"), Word("test")],
+                    )
+                ]
+            },
+        )
+
+    def test_intent_filter(self):
+        """Test filtering intents."""
+        ini_text = """
+        [TestIntent1]
+        this is a test
+
+        [TestIntent2]
+        this is another test
+        """
+
+        intents = parse_ini(ini_text, intent_filter=lambda n: n != "TestIntent2")
+        self.assertEqual(
+            intents,
+            {
+                "TestIntent1": [
+                    Sentence(
+                        text="this is a test",
+                        items=[Word("this"), Word("is"), Word("a"), Word("test")],
+                    )
+                ]
+            },
+        )
 
 
 # -----------------------------------------------------------------------------
