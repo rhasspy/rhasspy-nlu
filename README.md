@@ -31,7 +31,10 @@ turn on [the] (living room lamp | kitchen light){name}
 graph = rhasspynlu.intents_to_graph(intents)
 ```
 
-You can pass an `intent_filter` function to `parse_ini` to return `True` for only the intents you want to include. 
+The result is a [directed graph](https://networx.github.io/documentation/networkx-2.3/reference/classes/digraph.html) whose states are words and edges are input/output labels.
+
+You can pass an `intent_filter` function to `parse_ini` to return `True` for only the intent names you want to parse.
+Additionally, a function can be provided for the `sentence_transform` argument that each sentence will be passed through (e.g., to lower case).
 
 ### Template Syntax
 
@@ -47,6 +50,60 @@ Sentence templates are based on the [JSGF](https://www.w3.org/TR/jsgf/) standard
     * `make ten:10 coffees` - output will be "make 10 coffees"
     * `turn off the: (television | tele):tv` - output will be "turn off tv"
     * `set brightness to (medium | half){brightness:50}` - named entity `brightness` will be "50"
+* Rules
+    * `rule_name = rule body` can be referenced as `<rule_name>`
+* Slots
+    * `$slot` will be replaced by a list of sentences in the `replacements` argument of `intents_to_graph`
+    
+#### Rules
+
+Named rules can be added to your template file using the syntax:
+
+```
+rule_name = rule body
+```
+
+and then reference using `<rule_name>`. The body of a rule is a regular sentence, which may itself contain references to other rules.
+
+You can refrence rules from different intents by prefixing the rule name with the intent name and a dot:
+
+```
+[Intent1]
+rule = a test
+this is <rule>
+
+[Intent2]
+rule = this is
+<rule> <Intent1.rule>
+```
+
+In the example above, `Intent2` uses its local `<rule>` as well as the `<rule>` from `Intent1`.
+
+#### Slots
+
+Slot names are prefixed with a dollar sign (`$`). When calling `intents_to_graph`, the `replacements` argument is a dictionary whose keys are slot names (with `$`) and whose values are lists of (parsed) `Sentence` objects. Each `$slot` will be replaced by the corresponding list of sentences, which may contain optional words, tags, rules, and other slots.
+
+For example:
+
+```
+import rhasspynlu
+
+# Load and parse
+intents = rhasspynlu.parse_ini(
+"""
+[SetColor]
+set color to $color
+"""
+)
+
+graph = rhasspynlu.intents_to_graph(
+    intents, replacements = {
+        "$color": [rhasspynlu.Sentence.parse("red | green | blue")]
+    }
+)
+```
+
+will replace `$color` with "red", "green", or "blue".
 
 ## Intent Recognition
 
@@ -67,12 +124,43 @@ import rhasspynlu
 intents = rhasspynlu.parse_ini(Path("sentences.ini"))
 graph = rhasspynlu.intents_to_graph(intents)
 
-print(rhasspynlu.recognize("turn on living room lamp", graph))
+rhasspynlu.recognize("turn on living room lamp", graph)
 ```
 
-The `recognize` function returns a list of `Recognition` objects (or nothing if recognition fails). You can convert these to JSON:
+will return a list of `Recognition` objects like:
+
+```
+[
+    Recognition(
+        intent=Intent(name='LightOn', confidence=1.0),
+        entities=[
+            Entity(
+                entity='name',
+                value='living room lamp',
+                raw_value='living room lamp',
+                start=8,
+                raw_start=8,
+                end=24,
+                raw_end=24,
+                tokens=['living', 'room', 'lamp'],
+                raw_tokens=['living', 'room', 'lamp']
+            )
+        ],
+        text='turn on living room lamp',
+        raw_text='turn on living room lamp',
+        recognize_seconds=0.00010710899914556649,
+        tokens=['turn', 'on', 'living', 'room', 'lamp'],
+        raw_tokens=['turn', 'on', 'living', 'room', 'lamp']
+    )
+]
+
+```
+
+An empty list means that recognition has failed. You can easily convert `Recognition` objects to JSON:
 
 ```python
+...
+
 import json
 
 recognitions = rhasspynlu.recognize("turn on living room lamp", graph)
@@ -81,7 +169,32 @@ if recognitions:
     print(json.dumps(recognition_dict))
 ```
 
-You can also pass an `intent_filter` function to `recognize` to return `True` for only the intents you want to include.
+You can also pass an `intent_filter` function to `recognize` to return `True` only for intent names you want to include in the search.
+
+#### Tokens
+
+If your sentence is tokenized by something other than whitespace, pass the list of tokens into `recognize` instead of a string.
+
+#### Recognition Fields
+
+The `rhasspynlu.Recognition` object has the following fields:
+
+* `intent` - a `rhasspynlu.Intent` instance
+    * `name` - name of recognized intent
+    * `confidence` - number for 0-1, 1 being sure
+* `text` - substituted input text
+* `raw_text` - input text
+* `entities` - list of `rhasspynlu.Entity` objects
+    * `entity` - name of recognized entity ("name" in `(input:output){name}`)
+    * `value` - substituted value of recognized entity ("output" in `(input:output){name}`)
+    * `tokens` - list of words in `value`
+    * `start` - start index of `value` in `text`
+    * `end` - end index of `value` in `text` (exclusive)
+    * `raw_value` - value of recognized entity ("input" in `(input:output){name}`)
+    * `raw_tokens` - list of words in `raw_value`
+    * `raw_start` - start index of `raw_value` in `raw_text`
+    * `raw_end` - end index of `raw_value` in `raw_text` (exclusive)
+* `recognize_seconds` - seconds taken for `recognize`
 
 ### Stop Words
 
@@ -103,7 +216,7 @@ rhasspynlu.recognize("turn on the living room lamp", graph, fuzzy=False)
 
 This is at least twice as fast, but will fail if the sentence is not precisely present in the graph.
 
-Strict recognition also supports `stop_words` for a little added flexibility.
+Strict recognition also supports `stop_words` for a little added flexibility. If recognition without `stop_words` fails, a second attempt will be made using `stop_words`.
 
 ## ARPA Language Models
 
@@ -131,7 +244,12 @@ graph_fst = rhasspynlu.graph_to_fst(graph)
 graph_fst.write("my_fst.txt", "input_symbols.txt", "output_symbols.txt")
 
 # Compile and convert to ARPA language model
-rhasspynlu.fst_to_arpa("my_fst.txt", "input_symbols.txt", "output_symbols.txt", "my_arpa.lm")
+rhasspynlu.fst_to_arpa(
+    "my_fst.txt",
+    "input_symbols.txt", 
+    "output_symbols.txt",
+    "my_arpa.lm"
+)
 ```
 
 You can now use `my_arpa.lm` in any speech recognizer that accepts ARPA-formatted language models.
@@ -150,5 +268,11 @@ Example:
 
 ```python
 ...
-rhasspynlu.fst_to_arpa("my_fst.txt", "input_symbols.txt", "output_symbols.txt", "my_arpa.lm", base_fst_weight=("existing_arpa.fst", 0.05))
+rhasspynlu.fst_to_arpa(
+    "my_fst.txt",
+    "input_symbols.txt",
+    "output_symbols.txt",
+    "my_arpa.lm",
+    base_fst_weight=("existing_arpa.fst", 0.05)
+)
 ```
