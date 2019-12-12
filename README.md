@@ -6,7 +6,7 @@ Library for parsing Rhasspy sentence templates, doing intent recognition, and ge
 
 Rhasspy voice commands are stored in text files formatted like this:
 
-```
+```ini
 [Intent1]
 this is a sentence
 this is another sentence
@@ -59,7 +59,7 @@ Sentence templates are based on the [JSGF](https://www.w3.org/TR/jsgf/) standard
 
 Named rules can be added to your template file using the syntax:
 
-```
+```ini
 rule_name = rule body
 ```
 
@@ -67,7 +67,7 @@ and then reference using `<rule_name>`. The body of a rule is a regular sentence
 
 You can refrence rules from different intents by prefixing the rule name with the intent name and a dot:
 
-```
+```ini
 [Intent1]
 rule = a test
 this is <rule>
@@ -85,7 +85,7 @@ Slot names are prefixed with a dollar sign (`$`). When calling `intents_to_graph
 
 For example:
 
-```
+```python
 import rhasspynlu
 
 # Load and parse
@@ -235,8 +235,6 @@ The `graph_to_fst` and `fst_to_arpa` functions are used to convert between forma
 Example:
 
 ```python
-...
-
 # Convert to FST
 graph_fst = rhasspynlu.graph_to_fst(graph)
 
@@ -267,7 +265,6 @@ Now when you call `fst_to_arpa`, make sure to provide the `base_fst_weight` argu
 Example:
 
 ```python
-...
 rhasspynlu.fst_to_arpa(
     "my_fst.txt",
     "input_symbols.txt",
