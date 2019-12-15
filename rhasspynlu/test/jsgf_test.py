@@ -365,6 +365,7 @@ class OtherJsgfTestCase(unittest.TestCase):
         )
 
     def test_sequence_substition_in_alternative(self):
+        """Test sequence substitution inside an alternative."""
         s = Sentence.parse(
             "((light one):light_1 | (light two):light_2) {name} :domain{light}"
         )
