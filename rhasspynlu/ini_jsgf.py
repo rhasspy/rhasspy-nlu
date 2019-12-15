@@ -160,6 +160,7 @@ def split_rules(
 def get_intent_counts(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+    exclude_slots: bool = True,
 ):
     """Get number of possible sentences for each intent."""
     sentences, replacements = split_rules(intents, replacements)
@@ -168,7 +169,8 @@ def get_intent_counts(
     for intent_name, intent_sentences in sentences.items():
         # Compute counts for all sentences
         intent_counts[intent_name] = sum(
-            get_expression_count(s, replacements) for s in intent_sentences
+            get_expression_count(s, replacements, exclude_slots=exclude_slots)
+            for s in intent_sentences
         )
 
     return intent_counts

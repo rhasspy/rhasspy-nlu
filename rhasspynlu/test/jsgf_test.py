@@ -364,6 +364,36 @@ class OtherJsgfTestCase(unittest.TestCase):
             ],
         )
 
+    def test_sequence_substition_in_alternative(self):
+        s = Sentence.parse(
+            "((light one):light_1 | (light two):light_2) {name} :domain{light}"
+        )
+        self.assertEqual(
+            s.items,
+            [
+                Sequence(
+                    text="(light one):light_1 | (light two):light_2",
+                    type=SequenceType.ALTERNATIVE,
+                    tag=Tag(tag_text="name"),
+                    items=[
+                        Sequence(
+                            text="light one",
+                            substitution="light_1",
+                            type=SequenceType.GROUP,
+                            items=[Word("light"), Word("one")],
+                        ),
+                        Sequence(
+                            text="light two",
+                            substitution="light_2",
+                            type=SequenceType.GROUP,
+                            items=[Word("light"), Word("two")],
+                        ),
+                    ],
+                ),
+                Word(text="", substitution="domain", tag=Tag(tag_text="light")),
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 

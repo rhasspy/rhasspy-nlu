@@ -180,10 +180,11 @@ def unwrap_sequence(seq: Sequence) -> Sequence:
 def parse_expression(
     root: typing.Optional[Sequence],
     text: str,
-    end: typing.Optional[str] = None,
+    end: typing.List[str] = None,
     is_literal=True,
 ) -> typing.Optional[int]:
     """Parse a full expression. Return index in text where current expression ends."""
+    end = end or []
     found: bool = False
     next_index: int = 0
     literal: str = ""
@@ -205,25 +206,26 @@ def parse_expression(
 
         next_index = current_index + 1
 
-        if c == end:
+        if c in end:
             # Found end character of expression (e.g., ])
             next_index += 1
             found = True
             break
-        elif (c == ":") and (last_c in [")", "]"]):
+
+        if (c == ":") and (last_c in [")", "]"]):
             # Handle sequence substitution
             assert isinstance(last_taggable, Substitutable)
             next_index = parse_expression(
-                None, text[current_index + 1 :], end=" ", is_literal=False
+                None, text[current_index + 1 :], end=[" "] + end, is_literal=False
             )
 
             if next_index is None:
                 # End of text
                 next_index = len(text) + 1
             else:
-                next_index += current_index
+                next_index += current_index - 1
 
-            last_taggable.substitution = text[current_index + 1 : next_index - 1]
+            last_taggable.substitution = text[current_index + 1 : next_index].strip()
 
         elif c in ["<", "(", "[", "{", "|"]:
             # Begin group/tag/alt/etc.
@@ -243,7 +245,7 @@ def parse_expression(
                 assert last_group is not None
                 rule = RuleReference()
                 next_index = current_index + parse_expression(
-                    None, text[current_index + 1 :], end=">", is_literal=False
+                    None, text[current_index + 1 :], end=[">"], is_literal=False
                 )
 
                 rule_name = text[current_index + 1 : next_index - 1]
@@ -264,7 +266,7 @@ def parse_expression(
                 assert last_group is not None
                 group = Sequence(type=SequenceType.GROUP)
                 next_index = current_index + parse_expression(
-                    group, text[current_index + 1 :], end=")"
+                    group, text[current_index + 1 :], end=[")"]
                 )
 
                 group = unwrap_sequence(group)
@@ -276,7 +278,7 @@ def parse_expression(
                 # Recurse with group sequence to capture multi-word children.
                 optional_seq = Sequence(type=SequenceType.GROUP)
                 next_index = current_index + parse_expression(
-                    optional_seq, text[current_index + 1 :], end="]"
+                    optional_seq, text[current_index + 1 :], end=["]"]
                 )
 
                 optional_seq = unwrap_sequence(optional_seq)
@@ -309,7 +311,7 @@ def parse_expression(
 
                 # Tag
                 next_index = current_index + parse_expression(
-                    None, text[current_index + 1 :], end="}", is_literal=False
+                    None, text[current_index + 1 :], end=["}"], is_literal=False
                 )
 
                 # Exclude {}
@@ -366,7 +368,7 @@ def parse_expression(
             # Fix text
             last_group.text = " ".join(item.text for item in last_group.items)
 
-    if (end is not None) and (not found):
+    if end and (not found):
         # Signal end not found
         return None
 
@@ -379,6 +381,7 @@ def parse_expression(
 def get_expression_count(
     expression: Expression,
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+    exclude_slots: bool = True,
 ) -> int:
     """Get the number of possible sentences in an expression."""
     if isinstance(expression, Sequence):
@@ -402,7 +405,7 @@ def get_expression_count(
         return sum(
             get_expression_count(value, replacements) for value in replacements[key]
         )
-    elif isinstance(expression, SlotReference):
+    elif (not exclude_slots) and isinstance(expression, SlotReference):
         # Get substituted sentences for $slot
         key = f"${expression.slot_name}"
         return sum(

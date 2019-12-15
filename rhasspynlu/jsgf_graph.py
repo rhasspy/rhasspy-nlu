@@ -198,6 +198,7 @@ def intents_to_graph(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
     add_intent_weights: bool = True,
+    exclude_slots_from_counts: bool = True,
 ) -> nx.DiGraph:
     """Convert sentences/rules grouped by intent into a directed graph."""
     sentences, replacements = split_rules(intents, replacements)
@@ -206,15 +207,19 @@ def intents_to_graph(
 
     if add_intent_weights:
         # Count number of posssible sentences per intent
-        intent_counts = get_intent_counts(sentences, replacements)
+        intent_counts = get_intent_counts(
+            sentences, replacements, exclude_slots=exclude_slots_from_counts
+        )
         num_sentences_lcm = lcm(*intent_counts.values())
         intent_weights = {
-            intent_name: (num_sentences_lcm // intent_counts.get(intent_name))
+            intent_name: (
+                num_sentences_lcm // max(intent_counts.get(intent_name, 1), 1)
+            )
             for intent_name in sentences
         }
 
         # Normalize
-        weight_sum = sum(intent_weights.values())
+        weight_sum = max(sum(intent_weights.values()), 1)
         for intent_name in intent_weights:
             intent_weights[intent_name] /= weight_sum
     else:
@@ -234,7 +239,7 @@ def intents_to_graph(
 
         edge_kwargs = {}
         if add_intent_weights and (num_intents > 1):
-            edge_kwargs["sentene_count"] = intent_counts.get(intent_name, 1)
+            edge_kwargs["sentence_count"] = intent_counts.get(intent_name, 1)
             edge_kwargs["weight"] = intent_weights.get(intent_name, 0)
 
         graph.add_edge(
@@ -286,6 +291,7 @@ def json_to_graph(json_dict: typing.Dict[str, typing.Any]) -> nx.DiGraph:
 @attr.s
 class GraphFsts:
     """Result from graph_to_fsts."""
+
     intent_fsts: typing.Dict[str, str] = attr.ib()
     symbols: typing.Dict[str, int] = attr.ib()
     input_symbols: typing.Dict[str, int] = attr.ib()
@@ -376,6 +382,7 @@ def graph_to_fsts(
 @attr.s
 class GraphFst:
     """Result from graph_to_fst."""
+
     intent_fst: str = attr.ib()
     symbols: typing.Dict[str, int] = attr.ib()
     input_symbols: typing.Dict[str, int] = attr.ib()
