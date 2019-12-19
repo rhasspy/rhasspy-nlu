@@ -8,9 +8,12 @@ with open(os.path.join(this_dir, "README.md"), "r") as readme_file:
 with open("requirements.txt", "r") as requirements_file:
     requirements = requirements_file.read().splitlines()
 
+with open("VERSION", "r") as version_file:
+    version = version_file.read().strip()
+
 setuptools.setup(
     name="rhasspy-nlu",
-    version="0.1.2",
+    version=version,
     author="Michael Hansen",
     author_email="hansen.mike@gmail.com",
     url="https://github.com/synesthesiam/rhasspy-nlu",
