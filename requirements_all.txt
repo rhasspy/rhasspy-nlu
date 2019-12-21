@@ -1,4 +1,4 @@
 networkx==2.3
-attrs==19.1.0
-flake8
-pylint
+attrs==19.3.0
+flake8==3.7.9
+pylint==2.4.4
