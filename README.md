@@ -1,5 +1,7 @@
 # Rhasspy Natural Language Understanding
 
+![Travis CI build status](https://travis-ci.com/synesthesiam/rhasspy-nlu.svg?branch=master)
+
 Library for parsing Rhasspy sentence templates, doing intent recognition, and generating ARPA language models.
 
 ## Parsing Sentence Templates

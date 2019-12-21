@@ -1,0 +1,20 @@
+dist: buster
+services:
+- docker
+language: python
+python:
+- 3.6
+- 3.7
+install:
+- pip install -r requirements_all.txt
+script:
+- make check
+- make test
+- make dist
+before_deploy:
+  - export VERSION=$(cat VERSION)
+deploy:
+  provider: releases
+  api_key: "GITHUB OAUTH TOKEN"
+  file: "dist/rhasspy-nlu-${VERSION}.tar.gz"
+  skip_cleanup: true

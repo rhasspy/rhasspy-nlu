@@ -1,3 +1,4 @@
+"""Command-line utility for rhasspynlu"""
 import argparse
 import io
 import json
@@ -11,6 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def main():
+    """Main method"""
     parser = argparse.ArgumentParser("rhasspynlu")
     parser.add_argument("sentences_file", nargs="*", help="Sentences ini files")
     parser.add_argument(
