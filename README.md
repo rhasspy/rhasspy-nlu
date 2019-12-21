@@ -273,3 +273,37 @@ rhasspynlu.fst_to_arpa(
     base_fst_weight=("existing_arpa.fst", 0.05)
 )
 ```
+
+## Command Line Usage
+
+The `rhasspynlu` module can be run directly to convert `sentences.ini` files into JSON graphs or FST text files:
+
+```bash
+python3 -m rhasspynlu sentences.ini > graph.json
+```
+
+You can pass multiple `.ini` files as arguments, and they will be combined. Adding a `--fst` argument will write out FST text files instead:
+
+```
+python3 -m rhasspynlu sentences.ini --fst
+```
+
+This will output three files in the current directory:
+
+* `fst.txt` - finite state transducer as text
+* `fst.isymbols.txt` - input symbols
+* `fst.osymbols.txt` - output symbols
+
+These file names can be changed with the `--fst-text`, `--fst-isymbols`, and `--fst-osymbols` arguments, respectively.
+
+Compile to a binary FST using `fstcompile` (from [OpenFST](http://www.openfst.org)) with:
+
+```bash
+fstcompile \
+    --isymbols=fst.isymbols.txt \
+    --osymbols=fst.osymbols.txt \
+    --keep_isymbols=1 \
+    --keep_osymbols=1 \
+    fst.txt \
+    out.fst
+```

@@ -210,6 +210,11 @@ def intents_to_graph(
         intent_counts = get_intent_counts(
             sentences, replacements, exclude_slots=exclude_slots_from_counts
         )
+
+        # Fix zero counts
+        for intent_name in intent_counts:
+            intent_counts[intent_name] = max(intent_counts[intent_name], 1)
+
         num_sentences_lcm = lcm(*intent_counts.values())
         intent_weights = {
             intent_name: (

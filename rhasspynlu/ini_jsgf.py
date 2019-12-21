@@ -168,9 +168,12 @@ def get_intent_counts(
 
     for intent_name, intent_sentences in sentences.items():
         # Compute counts for all sentences
-        intent_counts[intent_name] = sum(
-            get_expression_count(s, replacements, exclude_slots=exclude_slots)
-            for s in intent_sentences
+        intent_counts[intent_name] = max(
+            1,
+            sum(
+                get_expression_count(s, replacements, exclude_slots=exclude_slots)
+                for s in intent_sentences
+            ),
         )
 
     return intent_counts
