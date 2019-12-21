@@ -12,9 +12,12 @@ script:
 - make test
 - make dist
 before_deploy:
-  - export VERSION=$(cat VERSION)
+- export VERSION=$(cat VERSION)
 deploy:
   provider: releases
-  api_key: "GITHUB OAUTH TOKEN"
-  file: "dist/rhasspy-nlu-${VERSION}.tar.gz"
+  api_key: $GITHUB_OAUTH_TOKEN
+  file: dist/rhasspy-nlu-${VERSION}.tar.gz
   skip_cleanup: true
+env:
+  global:
+    secure: KezsGZsB5uSEJOygJ4KbOREsOMFMtTzCVwdT0nCDElXrcufItJNNJM7++SGA6UxD2P3niAj6ag2rlnfTXvZyqAoJuXOxAxMxC3sy6uNYrtUSnwjs8n6xrMBSz0ApaFYdWMbg9ZmEf/TV+/G+9cZW1aDKVZNhYvX3WL+XN5sKhSeR8U4fDJeMdXb3VMGfdCAWwQzBfM8wjYpMf2v4lmhSvcWNB3rJnAu+8gnCwxA8K2o61YfrDbXFx3qb6M9IT9alWkQ0PGF0XuG9KBmEMuThyuecjkMSinQ1Ky8eJJjOdhkrJtZDwMaKS7jEUZgFJW0KicL2gfywO96+Md10S5/qpoddEnfUYp2LU5HmyNBvuGpNflBdvOe0Wun8QRJwZPs3HobSyGHs16nz3jt1LYzgyMHoyxP2ukaPwwTzZEWZmrMns0OcJTp3cthn7jwZFKMZ1Ja3OeuRxA8svNp7G7YwyR4HkWMvubr2MdtW94r5sHtC/7e7WGntWbCh6xOft2jROgei9S29lhCAFhKGiowYXCgzTTwkqxew6/ZQxxzo1Qrohbt0wZNXfbnVYj9zl9vsJl/SFAagx57uMhodgQeIoTQKq2I+PkEch82oR1vZSW/4AbOlIbH1O1W21rMpnqa7P5V/rztWLR1mafw3tpCvurypBFtP922u1oMQs+bwv8E=
