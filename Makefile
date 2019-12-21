@@ -1,15 +1,15 @@
 .PHONY: check test dist venv
 
 check:
-	flake8 rhasspynlu/*.py rhasspynlu/test/*.py
-	pylint rhasspynlu/*.py rhasspynlu/test/*.py
+	flake8 rhasspynlu/*.py test/*.py
+	pylint rhasspynlu/*.py test/*.py
 
 test:
 	python3 -m unittest \
-    rhasspynlu.test.jsgf_test \
-    rhasspynlu.test.ini_jsgf_test \
-    rhasspynlu.test.jsgf_graph_test \
-    rhasspynlu.test.fsticuffs_test
+    test.jsgf_test \
+    test.ini_jsgf_test \
+    test.jsgf_graph_test \
+    test.fsticuffs_test
 
 venv:
 	rm -rf .venv/
