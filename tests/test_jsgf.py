@@ -119,6 +119,36 @@ class BasicJsgfTestCase(unittest.TestCase):
         expected_count = 2 * 2 * 2 * 2
         self.assertEqual(get_expression_count(s), expected_count)
 
+    def test_word_converters(self):
+        """Test multiple converters on a single word"""
+        s = Sentence.parse("this is a test!c1!c2")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Word("is"),
+                Word("a"),
+                Word("test", converters=["c1", "c2"]),
+            ],
+        )
+
+    def test_substitution_and_converters(self):
+        """Test substitution and converters on a sequence"""
+        s = Sentence.parse("this (is a):test!c1!c2")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Sequence(
+                    text="is a",
+                    type=SequenceType.GROUP,
+                    items=[Word("is"), Word("a")],
+                    substitution="test",
+                    converters=["c1", "c2"],
+                ),
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 

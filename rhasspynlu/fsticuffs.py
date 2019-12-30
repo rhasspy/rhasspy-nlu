@@ -406,12 +406,16 @@ def path_to_recognition(
     node_path: typing.Iterable[int],
     graph: nx.DiGraph,
     cost: typing.Optional[float] = None,
+    converters: typing.Optional[
+        typing.Dict[str, typing.Callable[..., typing.Any]]
+    ] = None,
 ) -> typing.Tuple[RecognitionResult, typing.Optional[Recognition]]:
     """Transform node path in graph to an intent recognition object."""
     if not node_path:
         # Empty path indicates failure
         return RecognitionResult.FAILURE, None
 
+    converters = converters or get_default_converters()
     node_attrs = graph.nodes(data=True)
     recognition = Recognition(intent=Intent("", confidence=1.0))
 
@@ -421,6 +425,9 @@ def path_to_recognition(
 
     # Named entities
     entity_stack: typing.List[Entity] = []
+
+    # Value converters
+    converter_stack: typing.List[typing.List[str]] = []
 
     # Handle first node
     node_path_iter = iter(node_path)
@@ -441,6 +448,8 @@ def path_to_recognition(
             if entity_stack:
                 last_entity = entity_stack[-1]
                 last_entity.raw_tokens.append(word)
+            elif converter_stack:
+                converter_stack[-1].append(word)
 
         # Get output label
         edge_data = graph[last_node][next_node]
@@ -452,7 +461,7 @@ def path_to_recognition(
                 assert recognition.intent is not None
                 recognition.intent.name = olabel[9:]
             elif olabel.startswith("__begin__"):
-                # Begin entity
+                # Begin tag/entity
                 entity_name = olabel[9:]
                 entity_stack.append(
                     Entity(
@@ -463,7 +472,7 @@ def path_to_recognition(
                     )
                 )
             elif olabel.startswith("__end__"):
-                # End entity
+                # End tag/entity
                 assert entity_stack, "Found __end__ without a __begin__"
                 last_entity = entity_stack.pop()
                 expected_name = olabel[7:]
@@ -486,6 +495,20 @@ def path_to_recognition(
 
                 recognition.tokens.append(olabel)
                 sub_index += len(olabel) + 1
+
+                # TODO: Handle converters
+            elif olabel.startswith("__convert__"):
+                # Begin converter
+                converter_name = olabel[11:]
+                converter_stack.append(converter_name)
+            elif olabel.startswith("__converted__"):
+                # End converter
+                assert converter_stack, "Found __converted__ without a __convert__"
+                last_converter_name = converter_stack.pop()
+                converter_name = olabel[13:]
+                assert (
+                    last_converter_name == converter_name
+                ), "Mismatched converter name"
             else:
                 # Substituted text
                 recognition.tokens.append(olabel)
@@ -503,3 +526,10 @@ def path_to_recognition(
         recognition.intent.confidence = 1 - (cost / len(recognition.raw_tokens))
 
     return RecognitionResult.SUCCESS, recognition
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any]]:
+    return {"int": int, "float": float, "bool": bool}

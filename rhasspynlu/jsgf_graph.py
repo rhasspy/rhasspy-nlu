@@ -55,6 +55,18 @@ def expression_to_graph(
             # Ensure everything downstream outputs nothing
             empty_substitution = True
 
+    # Handle converters begin
+    if isinstance(expression, Substitutable) and expression.converters:
+        # Create begin transitions for each converter
+        for converter_name in expression.converters:
+            next_state = len(graph)
+            olabel = f"__convert__{converter_name}"
+            label = f"!{olabel}"
+            graph.add_edge(
+                source_state, next_state, ilabel="", olabel=olabel, label=label
+            )
+            source_state = next_state
+
     if isinstance(expression, Sequence):
         # Group, optional, or alternative
         seq: Sequence = expression
@@ -166,6 +178,18 @@ def expression_to_graph(
         label = f":{olabel}"
         graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
         source_state = next_state
+
+    # Handle converters end
+    if isinstance(expression, Substitutable) and expression.converters:
+        # Create begin transitions for each converter
+        for converter_name in expression.converters:
+            next_state = len(graph)
+            olabel = f"__converted__{converter_name}"
+            label = f"!{olabel}"
+            graph.add_edge(
+                source_state, next_state, ilabel="", olabel=olabel, label=label
+            )
+            source_state = next_state
 
     # Handle tag end
     if isinstance(expression, Taggable) and expression.tag:

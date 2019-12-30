@@ -118,6 +118,41 @@ class StrictTestCase(unittest.TestCase):
             ],
         )
 
+    def test_converters(self):
+        """Check sentence with converters."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this is a test!c1
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        # Recognition should still work
+        recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
+        self.assertEqual(
+            recognitions,
+            [
+                Recognition(
+                    intent=Intent(name="TestIntent", confidence=1),
+                    text="this is a test",
+                    raw_text="this is a test",
+                    tokens=[
+                        "this",
+                        "is",
+                        "a",
+                        "__begin_convert__c1",
+                        "__begin_convert__c2",
+                        "test",
+                        "__end_convert__c1",
+                        "__end_convert__c2",
+                    ],
+                    raw_tokens=["this", "is", "a", "test"],
+                )
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 
