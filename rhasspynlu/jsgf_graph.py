@@ -437,11 +437,13 @@ class GraphFst:
 
         # Write input symbols
         with open(isymbols_path, "w") as isymbols_file:
+            # pylint: disable=E1101
             for symbol, num in self.input_symbols.items():
                 print(symbol, num, file=isymbols_file)
 
         # Write output symbols
         with open(osymbols_path, "w") as osymbols_file:
+            # pylint: disable=E1101
             for symbol, num in self.output_symbols.items():
                 print(symbol, num, file=osymbols_file)
 

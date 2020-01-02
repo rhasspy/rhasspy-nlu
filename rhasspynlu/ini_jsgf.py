@@ -42,7 +42,7 @@ class Grammar:
             else:
                 # public <RuleName> = rule body;
                 # <RuleName> = rule body;
-                grammar.rules.append(Rule.parse(line))
+                grammar.rules.append(Rule.parse(line))  # pylint: disable=E1101
 
         return grammar
 

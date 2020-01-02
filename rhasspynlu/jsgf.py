@@ -344,17 +344,24 @@ def parse_expression(
                         and (not optional_seq.substitution)
                     ):
                         # Unpack inner item
+                        # pylint: disable=E1136
                         inner_item = optional_seq.items[0]
+
+                        # pylint: disable=E1101
                         optional.items.append(inner_item)
                     elif optional_seq.type == SequenceType.ALTERNATIVE:
                         # Unwrap inner alternative
+                        # pylint: disable=E1101
                         optional.items.extend(optional_seq.items)
                     else:
                         # Keep inner group
                         optional_seq.text = text[current_index + 1 : next_index - 1]
+
+                        # pylint: disable=E1101
                         optional.items.append(optional_seq)
 
                 # Empty alternative
+                # pylint: disable=E1101
                 optional.items.append(Word(text=""))
                 optional.text = text[current_index + 1 : next_index - 1]
 
@@ -399,10 +406,12 @@ def parse_expression(
                     alternative = Sequence(type=SequenceType.ALTERNATIVE)
                     if len(root.items) == 1:
                         # Add directly
+                        # pylint: disable=E1101
                         alternative.items.append(root.items[0])
                     else:
                         # Wrap in group
                         last_group = Sequence(type=SequenceType.GROUP, items=root.items)
+                        # pylint: disable=E1101
                         alternative.items.append(last_group)
 
                     # Modify original sequence
@@ -418,6 +427,8 @@ def parse_expression(
 
                 # Create new group for any follow-on expressions
                 last_group = Sequence(type=SequenceType.GROUP)
+
+                # pylint: disable=E1101
                 alternative.items.append(last_group)
         else:
             # Accumulate into current literal
