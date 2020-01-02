@@ -25,7 +25,8 @@ disable=
   unused-argument,
   broad-except,
   too-many-nested-blocks,
-  invalid-name
+  invalid-name,
+  consider-using-enumerate
 
 [FORMAT]
 expected-line-ending-format=LF

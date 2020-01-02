@@ -139,31 +139,52 @@ class Rule:
 
 def walk_expression(
     expression: Expression,
-    visit: typing.Callable[[Expression], bool],
-    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Expression]]] = None,
-):
-    """Recursively visit nodes in expression."""
+    visit: typing.Callable[
+        [Expression], typing.Union[bool, typing.Optional[Expression]]
+    ],
+    replacements: typing.Optional[typing.Dict[str, typing.List[Expression]]] = None,
+) -> typing.Union[bool, typing.Optional[Expression]]:
+    """Recursively visit/replace nodes in expression."""
     result = visit(expression)
 
-    # Break on explicit False
-    if (result is not None) and (not result):
-        return
+    if result is False:
+        return False
+
+    if result is not None:
+        assert isinstance(result, Expression)
+        expression = result
 
     if isinstance(expression, Sequence):
-        for item in expression.items:
-            walk_expression(item, visit, replacements)
+        for i in range(len(expression.items)):
+            new_item = walk_expression(expression.items[i], visit, replacements)
+            if new_item:
+                assert isinstance(new_item, Expression)
+                expression.items[i] = new_item
     elif isinstance(expression, Rule):
-        walk_expression(expression.rule_body, visit, replacements)
+        new_body = walk_expression(expression.rule_body, visit, replacements)
+        if new_body:
+            assert isinstance(new_body, Expression)
+            expression.rule_body = new_body
     elif isinstance(expression, RuleReference):
         key = f"<{expression.rule_name}>"
         assert replacements, key
-        for item in replacements[key]:
-            walk_expression(item, visit, replacements)
+        key_replacements = replacements[key]
+        for i in range(len(key_replacements)):
+            new_item = walk_expression(key_replacements[i], visit, replacements)
+            if new_item:
+                assert isinstance(new_item, Expression)
+                key_replacements[i] = new_item
     elif isinstance(expression, SlotReference):
         key = f"${expression.slot_name}"
         assert replacements, key
-        for item in replacements[key]:
-            walk_expression(item, visit, replacements)
+        key_replacements = replacements[key]
+        for i in range(len(key_replacements)):
+            new_item = walk_expression(key_replacements[i], visit, replacements)
+            if new_item:
+                assert isinstance(new_item, Expression)
+                key_replacements[i] = new_item
+
+    return expression
 
 
 # -----------------------------------------------------------------------------

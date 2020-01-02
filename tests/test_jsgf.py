@@ -385,7 +385,7 @@ class OtherJsgfTestCase(unittest.TestCase):
         )
 
     def test_walk(self):
-        """Test Expression.walk."""
+        """Test walk_expression."""
         s = Sentence.parse("set alarm for (2 | 3) minutes")
 
         def num2words(word):
@@ -417,6 +417,43 @@ class OtherJsgfTestCase(unittest.TestCase):
                         Word("two", substitution="2"),
                         Word("three", substitution="3"),
                     ],
+                ),
+                Word("minutes"),
+            ],
+        )
+
+    def test_walk_multiple_words(self):
+        """Test walk_expression with a multi-word replacement."""
+        s = Sentence.parse("set alarm for 23 minutes")
+
+        def num2words(word):
+            if not isinstance(word, Word):
+                return
+
+            try:
+                n = int(word.text)
+                if n == 23:
+                    return Sequence(
+                        text="23",
+                        type=SequenceType.GROUP,
+                        items=[Word("twenty"), Word("three")],
+                        substitution="23",
+                    )
+            except ValueError:
+                pass
+
+        walk_expression(s, num2words)
+        self.assertEqual(
+            s.items,
+            [
+                Word("set"),
+                Word("alarm"),
+                Word("for"),
+                Sequence(
+                    text="23",
+                    type=SequenceType.GROUP,
+                    items=[Word("twenty"), Word("three")],
+                    substitution="23",
                 ),
                 Word("minutes"),
             ],
