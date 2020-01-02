@@ -17,6 +17,7 @@ def recognize(
     fuzzy: bool = True,
     stop_words: typing.Optional[typing.Set[str]] = None,
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
+    word_transform: typing.Optional[typing.Callable[[str], str]] = None,
     **search_args
 ) -> typing.List[Recognition]:
     """Recognize one or more intents from tokens or a sentence."""
@@ -34,6 +35,7 @@ def recognize(
                 graph,
                 stop_words=stop_words,
                 intent_filter=intent_filter,
+                word_transform=word_transform,
                 **search_args
             )
         )
@@ -56,7 +58,13 @@ def recognize(
     else:
         # Strict recognition
         paths = list(
-            paths_strict(tokens, graph, intent_filter=intent_filter, **search_args)
+            paths_strict(
+                tokens,
+                graph,
+                intent_filter=intent_filter,
+                word_transform=word_transform,
+                **search_args
+            )
         )
         if (not paths) and stop_words:
             # Try again by excluding stop words
@@ -67,6 +75,7 @@ def recognize(
                     graph,
                     exclude_tokens=stop_words,
                     intent_filter=intent_filter,
+                    word_transform=word_transform,
                     **search_args
                 )
             )
@@ -94,12 +103,14 @@ def paths_strict(
     exclude_tokens: typing.Optional[typing.Set[str]] = None,
     max_paths: typing.Optional[int] = None,
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
+    word_transform: typing.Optional[typing.Callable[[str], str]] = None,
 ) -> typing.Iterable[typing.List[int]]:
     """Match a single path from the graph exactly if possible."""
     if not tokens:
         return []
 
     intent_filter = intent_filter or (lambda x: True)
+    word_transform = word_transform or (lambda x: x)
 
     # node -> attrs
     n_data = graph.nodes(data=True)
@@ -137,9 +148,11 @@ def paths_strict(
                     continue
 
             if ilabel:
+                ilabel = word_transform(ilabel)
+
                 if next_tokens:
                     # Failed to match input label
-                    if ilabel != next_tokens[0]:
+                    if ilabel != word_transform(next_tokens[0]):
                         if (not exclude_tokens) or (ilabel not in exclude_tokens):
                             # Can't exclude
                             continue
@@ -178,6 +191,7 @@ class FuzzyCostInput:
     ilabel: str = attr.ib()
     tokens: typing.Deque[str] = attr.ib()
     stop_words: typing.Set[str] = attr.ib()
+    word_transform: typing.Optional[typing.Callable[[str], str]] = attr.ib(default=None)
 
 
 @attr.s
@@ -194,10 +208,12 @@ def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
     cost: float = 0.0
     tokens: typing.Deque[str] = cost_input.tokens
     stop_words: typing.Set[str] = cost_input.stop_words
+    word_transform = cost_input.word_transform or (lambda x: x)
 
     if ilabel:
-        while tokens and (ilabel != tokens[0]):
-            bad_token = tokens.pop(0)
+        ilabel = word_transform(ilabel)
+        while tokens and (ilabel != word_transform(tokens[0])):
+            bad_token = word_transform(tokens.pop(0))
             if bad_token in stop_words:
                 # Marginal cost to ensure paths matching stop words are preferred
                 cost += 0.1
@@ -205,7 +221,7 @@ def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
                 # Mismatched token
                 cost += 1
 
-        if tokens and (ilabel == tokens[0]):
+        if tokens and (ilabel == word_transform(tokens[0])):
             # Consume matching token
             tokens.pop(0)
         else:
@@ -223,6 +239,7 @@ def paths_fuzzy(
         typing.Callable[[FuzzyCostInput], FuzzyCostOutput]
     ] = None,
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
+    word_transform: typing.Optional[typing.Callable[[str], str]] = None,
 ) -> typing.Dict[str, typing.List[FuzzyResult]]:
     """Do less strict matching using a cost function and optional stop words."""
     if not tokens:
@@ -317,7 +334,10 @@ def paths_fuzzy(
 
             cost_output = cost_function(
                 FuzzyCostInput(
-                    ilabel=in_label, tokens=next_in_tokens, stop_words=stop_words
+                    ilabel=in_label,
+                    tokens=next_in_tokens,
+                    stop_words=stop_words,
+                    word_transform=word_transform,
                 )
             )
 
