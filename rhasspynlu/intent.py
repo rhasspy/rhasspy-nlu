@@ -18,7 +18,7 @@ class Entity:
     raw_start: int = attr.ib(default=0)
     end: int = attr.ib(default=0)
     raw_end: int = attr.ib(default=0)
-    tokens: typing.List[str] = attr.ib(factory=list)
+    tokens: typing.List[typing.Any] = attr.ib(factory=list)
     raw_tokens: typing.List[str] = attr.ib(factory=list)
 
 
@@ -57,7 +57,7 @@ class Recognition:
     text: str = attr.ib(default="")
     raw_text: str = attr.ib(default="")
     recognize_seconds: float = attr.ib(default=0)
-    tokens: typing.List[str] = attr.ib(factory=list)
+    tokens: typing.List[typing.Any] = attr.ib(factory=list)
     raw_tokens: typing.List[str] = attr.ib(factory=list)
 
     def asdict(self) -> typing.Dict[str, typing.Any]:

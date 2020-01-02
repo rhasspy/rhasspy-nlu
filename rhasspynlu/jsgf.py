@@ -10,13 +10,18 @@ import attr
 class Substitutable:
     """Indicates an expression may be replaced with some text."""
 
+    # Replacement text
     substitution: typing.Optional[str] = attr.ib(default=None)
+
+    # Names of converters to apply after substitution
+    converters: typing.List[str] = attr.ib(factory=list)
 
 
 @attr.s
 class Tag(Substitutable):
     """{tag} attached to an expression."""
 
+    # Name of tag (entity)
     tag_text: str = attr.ib(default="")
 
 
@@ -24,6 +29,7 @@ class Tag(Substitutable):
 class Taggable:
     """Indicates an expression may be tagged."""
 
+    # Tag to be applied
     tag: typing.Optional[Tag] = attr.ib(default=None)
 
 
@@ -31,6 +37,7 @@ class Taggable:
 class Expression:
     """Base class for most JSGF types."""
 
+    # Text representation expression
     text: str = attr.ib(default="")
 
 
@@ -44,7 +51,10 @@ class Word(Expression, Taggable, Substitutable):
 class SequenceType(str, Enum):
     """Type of a sequence. Optionals are alternatives with an empty option."""
 
+    # Sequence of expressions
     GROUP = "group"
+
+    # Expressions where only one will be recognized
     ALTERNATIVE = "alternative"
 
 
@@ -52,7 +62,10 @@ class SequenceType(str, Enum):
 class Sequence(Expression, Taggable, Substitutable):
     """Ordered sequence of expressions. Supports groups, optionals, and alternatives."""
 
+    # Items in the sequence
     items: typing.List[Expression] = attr.ib(factory=list)
+
+    # Group or alternative
     type: SequenceType = attr.ib(default=SequenceType.GROUP)
 
 
@@ -60,7 +73,10 @@ class Sequence(Expression, Taggable, Substitutable):
 class RuleReference(Expression, Taggable):
     """Reference to a rule by <name> or <grammar.name>."""
 
+    # Name of referenced rule
     rule_name: str = attr.ib(default="")
+
+    # Grammar name of referenced rule
     grammar_name: typing.Optional[str] = attr.ib(default=None)
 
 
@@ -68,6 +84,7 @@ class RuleReference(Expression, Taggable):
 class SlotReference(Expression, Taggable, Substitutable):
     """Reference to a slot by $name."""
 
+    # Name of referenced slot
     slot_name: str = attr.ib(default="")
 
 
@@ -163,10 +180,24 @@ def split_words(text: str) -> typing.Iterable[Expression]:
             else:
                 # Slot without substitutions
                 yield SlotReference(text=token, slot_name=token[1:])
-        elif ":" in token:
-            # Word with substitution
-            lhs, rhs = token.split(":", maxsplit=1)
-            yield Word(text=lhs, substitution=rhs)
+        elif ":" in token or "!" in token:
+            word = Word(text=token)
+
+            if "!" in token:
+                # Word with converter(s)
+                # e.g., twenty:20!int
+                parts = token.split("!")
+                word.text = parts[0]
+                word.converters = parts[1:]
+
+            if ":" in word.text:
+                # Word with substitution
+                # e.g., twenty:20
+                lhs, rhs = word.text.split(":", maxsplit=1)
+                word.text = lhs
+                word.substitution = rhs
+
+            yield word
         else:
             # With without substitution
             yield Word(text=token)
@@ -234,7 +265,13 @@ def parse_expression(
             else:
                 next_index += current_index - 1
 
-            last_taggable.substitution = text[current_index + 1 : next_index].strip()
+            sub_text = text[current_index + 1 : next_index].strip()
+            if "!" in sub_text:
+                # Extract converter(s)
+                sub_text, *converters = sub_text.split("!")
+                last_taggable.converters = converters
+
+            last_taggable.substitution = sub_text
 
         elif c in ["<", "(", "[", "{", "|"]:
             # Begin group/tag/alt/etc.
@@ -307,17 +344,24 @@ def parse_expression(
                         and (not optional_seq.substitution)
                     ):
                         # Unpack inner item
+                        # pylint: disable=E1136
                         inner_item = optional_seq.items[0]
+
+                        # pylint: disable=E1101
                         optional.items.append(inner_item)
                     elif optional_seq.type == SequenceType.ALTERNATIVE:
                         # Unwrap inner alternative
+                        # pylint: disable=E1101
                         optional.items.extend(optional_seq.items)
                     else:
                         # Keep inner group
                         optional_seq.text = text[current_index + 1 : next_index - 1]
+
+                        # pylint: disable=E1101
                         optional.items.append(optional_seq)
 
                 # Empty alternative
+                # pylint: disable=E1101
                 optional.items.append(Word(text=""))
                 optional.text = text[current_index + 1 : next_index - 1]
 
@@ -338,10 +382,21 @@ def parse_expression(
                 # Exclude {}
                 tag.tag_text = text[current_index + 1 : next_index - 1]
 
-                if ":" in tag.tag_text:
-                    lhs, rhs = tag.tag_text.split(":", maxsplit=1)
-                    tag.tag_text = lhs
-                    tag.substitution = rhs
+                # Handle substitution/converter(s)
+                if ":" in tag.tag_text or "!" in tag.tag_text:
+                    if "!" in tag.tag_text:
+                        # Word with converter(s)
+                        # e.g., twenty:20!int
+                        parts = tag.tag_text.split("!")
+                        tag.tag_text = parts[0]
+                        tag.converters = parts[1:]
+
+                    if ":" in tag.tag_text:
+                        # Word with substitution
+                        # e.g., twenty:20
+                        lhs, rhs = tag.tag_text.split(":", maxsplit=1)
+                        tag.tag_text = lhs
+                        tag.substitution = rhs
 
                 last_taggable.tag = tag
             elif c == "|":
@@ -351,10 +406,12 @@ def parse_expression(
                     alternative = Sequence(type=SequenceType.ALTERNATIVE)
                     if len(root.items) == 1:
                         # Add directly
+                        # pylint: disable=E1101
                         alternative.items.append(root.items[0])
                     else:
                         # Wrap in group
                         last_group = Sequence(type=SequenceType.GROUP, items=root.items)
+                        # pylint: disable=E1101
                         alternative.items.append(last_group)
 
                     # Modify original sequence
@@ -370,6 +427,8 @@ def parse_expression(
 
                 # Create new group for any follow-on expressions
                 last_group = Sequence(type=SequenceType.GROUP)
+
+                # pylint: disable=E1101
                 alternative.items.append(last_group)
         else:
             # Accumulate into current literal
