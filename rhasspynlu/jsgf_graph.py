@@ -34,7 +34,7 @@ def expression_to_graph(
     grammar_name: typing.Optional[str] = None,
 ) -> int:
     """Insert JSGF expression into a graph. Return final state."""
-    replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
+    replacements = replacements or {}
 
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
@@ -128,7 +128,7 @@ def expression_to_graph(
         rule_replacements = replacements.get(rule_name)
         assert rule_replacements, f"Missing rule {rule_name}"
 
-        rule_body = rule_replacements[0]
+        rule_body = next(iter(rule_replacements))
         assert isinstance(rule_body, Sentence), f"Invalid rule {rule_name}: {rule_body}"
         source_state = expression_to_graph(
             rule_body,
@@ -148,13 +148,13 @@ def expression_to_graph(
         assert slot_values, f"Missing slot {slot_values}"
 
         # Interpret as alternative
-        slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=slot_values)
+        slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=list(slot_values))
         source_state = expression_to_graph(
             slot_seq,
             graph,
             source_state,
             replacements=replacements,
-            empty_substitution=(empty_substitution or slot_ref.substitution),
+            empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
             grammar_name=grammar_name,
         )
 
@@ -203,11 +203,11 @@ def intents_to_graph(
     """Convert sentences/rules grouped by intent into a directed graph."""
     sentences, replacements = split_rules(intents, replacements)
     num_intents = len(sentences)
-    intent_weights = {}
+    intent_weights: typing.Dict[str, float] = {}
 
     if add_intent_weights:
         # Count number of posssible sentences per intent
-        intent_counts = get_intent_counts(
+        intent_counts = get_intent_counts(  # type: ignore
             sentences, replacements, exclude_slots=exclude_slots_from_counts
         )
 

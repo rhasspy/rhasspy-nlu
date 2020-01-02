@@ -73,7 +73,8 @@ def parse_ini(
             allow_no_value=True, strict=False, delimiters=["="]
         )
 
-        config.optionxform = str  # case sensitive
+        # case sensitive
+        config.optionxform = str  # type: ignore
         config.read_file(source)
 
         _LOGGER.debug("Loaded ini file")
@@ -125,10 +126,12 @@ def parse_ini(
 def split_rules(
     intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
-) -> typing.Tuple[typing.Dict[str, Sentence], typing.Dict[str, typing.List[Sentence]]]:
+) -> typing.Tuple[
+    typing.Dict[str, typing.List[Sentence]], typing.Dict[str, typing.Iterable[Sentence]]
+]:
     """Seperate out rules and sentences from all intents."""
     sentences: typing.Dict[str, typing.List[Sentence]] = {}
-    replacements: typing.Dict[str, typing.Iterable[Sentence]] = replacements or {}
+    replacements = replacements or {}
 
     for intent_name, intent_exprs in intents.items():
         sentences[intent_name] = []
@@ -164,7 +167,7 @@ def get_intent_counts(
 ):
     """Get number of possible sentences for each intent."""
     sentences, replacements = split_rules(intents, replacements)
-    intent_counts = defaultdict(int)
+    intent_counts: typing.Dict[str, int] = defaultdict(int)
 
     for intent_name, intent_sentences in sentences.items():
         # Compute counts for all sentences

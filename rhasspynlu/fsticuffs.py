@@ -51,6 +51,7 @@ def recognize(
                     fuzzy_result.node_path, graph, cost=fuzzy_result.cost
                 )
                 if result == RecognitionResult.SUCCESS:
+                    assert recognition is not None
                     recognition.recognize_seconds = end_time - start_time
                     recognitions.append(recognition)
 
@@ -85,6 +86,7 @@ def recognize(
         for path in paths:
             result, recognition = path_to_recognition(path, graph)
             if result == RecognitionResult.SUCCESS:
+                assert recognition is not None
                 recognition.recognize_seconds = end_time - start_time
                 recognitions.append(recognition)
 
@@ -122,7 +124,10 @@ def paths_strict(
     paths_found: int = 0
 
     # Do breadth-first search
-    node_queue = [(start_node, [], tokens)]
+    node_queue: typing.List[typing.Tuple[int, typing.List[int], typing.List[str]]] = [
+        (start_node, [], tokens)
+    ]
+
     while node_queue:
         current_node, current_path, current_tokens = node_queue.pop(0)
         is_final = n_data[current_node].get("final", False)
@@ -189,7 +194,7 @@ class FuzzyCostInput:
     """Input to fuzzy cost function."""
 
     ilabel: str = attr.ib()
-    tokens: typing.Deque[str] = attr.ib()
+    tokens: typing.List[str] = attr.ib()
     stop_words: typing.Set[str] = attr.ib()
     word_transform: typing.Optional[typing.Callable[[str], str]] = attr.ib(default=None)
 
@@ -204,10 +209,10 @@ class FuzzyCostOutput:
 
 def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
     """Increases cost when input tokens fail to match graph. Marginal cost for stop words."""
-    ilabel: str = cost_input.ilabel
-    cost: float = 0.0
-    tokens: typing.Deque[str] = cost_input.tokens
-    stop_words: typing.Set[str] = cost_input.stop_words
+    ilabel = cost_input.ilabel
+    cost = 0.0
+    tokens = cost_input.tokens
+    stop_words = cost_input.stop_words
     word_transform = cost_input.word_transform or (lambda x: x)
 
     if ilabel:
@@ -243,11 +248,11 @@ def paths_fuzzy(
 ) -> typing.Dict[str, typing.List[FuzzyResult]]:
     """Do less strict matching using a cost function and optional stop words."""
     if not tokens:
-        return []
+        return {}
 
     intent_filter = intent_filter or (lambda x: True)
     cost_function = cost_function or default_fuzzy_cost
-    stop_words: typing.Set[str] = stop_words or set()
+    stop_words = stop_words or set()
 
     # node -> attrs
     n_data = graph.nodes(data=True)
@@ -280,6 +285,7 @@ def paths_fuzzy(
         # Update best intent cost on final state.
         # Don't bother reporting intents that failed to consume any tokens.
         if is_final and (q_cost < q_out_count):
+            q_intent = q_intent or ""
             best_intent_cost: typing.Optional[float] = None
             best_intent_costs = intent_symbols_and_costs.get(q_intent)
             if best_intent_costs:
@@ -315,8 +321,8 @@ def paths_fuzzy(
 
         # Process child edges
         for next_node, edge_data in graph[q_node].items():
-            in_label = edge_data.get("ilabel", "")
-            out_label = edge_data.get("olabel", "")
+            in_label = edge_data.get("ilabel") or ""
+            out_label = edge_data.get("olabel") or ""
             next_in_tokens = list(q_in_tokens)
             next_out_nodes = list(q_out_nodes)
             next_out_count = q_out_count
@@ -443,6 +449,7 @@ def path_to_recognition(
         if olabel:
             if olabel.startswith("__label__"):
                 # Intent
+                assert recognition.intent is not None
                 recognition.intent.name = olabel[9:]
             elif olabel.startswith("__begin__"):
                 # Begin entity
@@ -492,6 +499,7 @@ def path_to_recognition(
 
     if cost and cost > 0:
         # Set fuzzy confidence
+        assert recognition.intent is not None
         recognition.intent.confidence = 1 - (cost / len(recognition.raw_tokens))
 
     return RecognitionResult.SUCCESS, recognition

@@ -80,7 +80,14 @@ class Sentence(Sequence):
         """Parse a single sentence."""
         s = Sentence(text=text)
         parse_expression(s, text)
-        return unwrap_sequence(s)
+        seq = unwrap_sequence(s)
+        return Sentence(
+            text=seq.text,
+            items=seq.items,
+            type=seq.type,
+            tag=seq.tag,
+            substitution=seq.substitution,
+        )
 
 
 @attr.s
@@ -132,10 +139,12 @@ def walk_expression(
         walk_expression(expression.rule_body, visit, replacements)
     elif isinstance(expression, RuleReference):
         key = f"<{expression.rule_name}>"
+        assert replacements, key
         for item in replacements[key]:
             walk_expression(item, visit, replacements)
     elif isinstance(expression, SlotReference):
         key = f"${expression.slot_name}"
+        assert replacements, key
         for item in replacements[key]:
             walk_expression(item, visit, replacements)
 
@@ -237,16 +246,20 @@ def parse_expression(
                 words = list(split_words(literal))
                 last_group.items.extend(words)
 
-                last_taggable = words[-1]
+                last_word = words[-1]
+                assert isinstance(last_word, Taggable)
+                last_taggable = last_word
                 literal = ""
 
             if c == "<":
                 # Rule reference
                 assert last_group is not None
                 rule = RuleReference()
-                next_index = current_index + parse_expression(
+                end_index = parse_expression(
                     None, text[current_index + 1 :], end=[">"], is_literal=False
                 )
+                assert end_index
+                next_index = end_index + current_index
 
                 rule_name = text[current_index + 1 : next_index - 1]
                 if "." in rule_name:
@@ -265,9 +278,11 @@ def parse_expression(
                 # Group (expression)
                 assert last_group is not None
                 group = Sequence(type=SequenceType.GROUP)
-                next_index = current_index + parse_expression(
+                end_index = parse_expression(
                     group, text[current_index + 1 :], end=[")"]
                 )
+                assert end_index
+                next_index = end_index + current_index
 
                 group = unwrap_sequence(group)
                 group.text = text[current_index + 1 : next_index - 1]
@@ -277,9 +292,11 @@ def parse_expression(
                 # Optional
                 # Recurse with group sequence to capture multi-word children.
                 optional_seq = Sequence(type=SequenceType.GROUP)
-                next_index = current_index + parse_expression(
+                end_index = parse_expression(
                     optional_seq, text[current_index + 1 :], end=["]"]
                 )
+                assert end_index
+                next_index = end_index + current_index
 
                 optional_seq = unwrap_sequence(optional_seq)
                 optional = Sequence(type=SequenceType.ALTERNATIVE)
@@ -303,6 +320,8 @@ def parse_expression(
                 # Empty alternative
                 optional.items.append(Word(text=""))
                 optional.text = text[current_index + 1 : next_index - 1]
+
+                assert last_group is not None
                 last_group.items.append(optional)
                 last_taggable = optional
             elif c == "{":
@@ -310,9 +329,11 @@ def parse_expression(
                 tag = Tag()
 
                 # Tag
-                next_index = current_index + parse_expression(
+                end_index = parse_expression(
                     None, text[current_index + 1 :], end=["}"], is_literal=False
                 )
+                assert end_index
+                next_index = end_index + current_index
 
                 # Exclude {}
                 tag.tag_text = text[current_index + 1 : next_index - 1]
@@ -342,6 +363,7 @@ def parse_expression(
                     # Overwrite root
                     root = alternative
 
+                assert last_group is not None
                 if not last_group.text:
                     # Fix text
                     last_group.text = " ".join(item.text for item in last_group.items)
@@ -358,11 +380,13 @@ def parse_expression(
     if is_literal and literal:
         assert root is not None
         words = list(split_words(literal))
+        assert last_group is not None
         last_group.items.extend(words)
 
     if last_group:
         if len(last_group.items) == 1:
             # Simplify final group
+            assert root is not None
             root.items[-1] = last_group.items[0]
         elif not last_group.text:
             # Fix text
@@ -402,12 +426,14 @@ def get_expression_count(
     elif isinstance(expression, RuleReference):
         # Get substituted sentences for <rule>
         key = f"<{expression.rule_name}>"
+        assert replacements, key
         return sum(
             get_expression_count(value, replacements) for value in replacements[key]
         )
     elif (not exclude_slots) and isinstance(expression, SlotReference):
         # Get substituted sentences for $slot
         key = f"${expression.slot_name}"
+        assert replacements, key
         return sum(
             get_expression_count(value, replacements) for value in replacements[key]
         )

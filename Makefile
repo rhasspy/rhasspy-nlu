@@ -3,6 +3,7 @@
 check:
 	flake8 rhasspynlu/*.py test/*.py
 	pylint rhasspynlu/*.py test/*.py
+	mypy rhasspynlu/*.py test/*.py
 
 test:
 	python3 -m unittest \
