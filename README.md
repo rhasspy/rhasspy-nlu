@@ -220,6 +220,104 @@ This is at least twice as fast, but will fail if the sentence is not precisely p
 
 Strict recognition also supports `stop_words` for a little added flexibility. If recognition without `stop_words` fails, a second attempt will be made using `stop_words`.
 
+### Converters
+
+Value conversions can be applied during recognition, such as converting the string "10" to the integer 10. Following a word, sequence, or tag name with "!converter" will run "converter" on the string value during `recognize`:
+
+```python
+import rhasspynlu
+
+# Load and parse
+intents = rhasspynlu.parse_ini(
+"""
+[SetBrightness]
+set brightness to (one: hundred:100)!int
+"""
+)
+
+graph = rhasspynlu.intents_to_graph(intents)
+
+recognitions = rhasspynlu.recognize("set brightness to one hundred", graph)
+assert recognitions[0].tokens[-1] == 100
+```
+
+Converters can be applied to tags/entities as well:
+
+```python
+import rhasspynlu
+
+# Load and parse
+intents = rhasspynlu.parse_ini(
+"""
+[SetBrightness]
+set brightness to (one:1 | two:2){value!int}
+"""
+)
+
+graph = rhasspynlu.intents_to_graph(intents)
+
+recognitions = rhasspynlu.recognize("set brightness to two", graph)
+assert recognitions[0].tokens[-1] == 2
+```
+
+The following default converters are available in `rhasspynlu`:
+
+* int - convert to integer
+* float - convert to real
+* bool - convert to boolean
+* lower - lower-case
+* upper - upper-case
+
+You may override these converters by passing a dictionary to the `converters` argument of `recognize`. To supply additional converters (instead of overriding), use `extra_converters`:
+
+```python
+import rhasspynlu
+
+# Load and parse
+intents = rhasspynlu.parse_ini(
+"""
+[SetBrightness]
+set brightness to (one:1 | two:2){value!myconverter}
+"""
+)
+
+graph = rhasspynlu.intents_to_graph(intents)
+
+recognitions = rhasspynlu.recognize(
+    "set brightness to two",
+    graph,
+    extra_converters={
+        "myconverter": lambda *values: [int(v)**2 for v in values]
+    }
+)
+assert recognitions[0].tokens[-1] == 4
+```
+
+Lastly, you can chain converters together with multiple "!":
+
+```python
+import rhasspynlu
+
+# Load and parse
+intents = rhasspynlu.parse_ini(
+"""
+[SetBrightness]
+set brightness to (one:1 | two:2){value!int!cube}
+"""
+)
+
+graph = rhasspynlu.intents_to_graph(intents)
+
+recognitions = rhasspynlu.recognize(
+    "set brightness to two",
+    graph,
+    extra_converters={
+        "cube": lambda *values: [v**3 for v in values]
+    }
+)
+assert recognitions[0].tokens[-1] == 8
+```
+
 ## ARPA Language Models
 
 If you have the [Opengrm](http://www.opengrm.org/twiki/bin/view/GRM/NGramLibrary) command-line tools in your `PATH`, you can use `rhasspynlu` to generate language models in the [ARPA format](https://cmusphinx.github.io/wiki/arpaformat/). 
