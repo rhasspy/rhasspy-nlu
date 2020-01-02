@@ -254,8 +254,7 @@ def parse_expression(
 
         if (c in [":", "!"]) and (last_c in [")", "]"]):
             # Handle sequence substitution/conversion
-            if c == ":":
-                assert isinstance(last_taggable, Substitutable)
+            assert isinstance(last_taggable, Substitutable)
 
             next_index = parse_expression(
                 None, text[current_index + 1 :], end=[" "] + end, is_literal=False
