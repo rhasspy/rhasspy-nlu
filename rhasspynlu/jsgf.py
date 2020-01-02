@@ -186,9 +186,9 @@ def split_words(text: str) -> typing.Iterable[Expression]:
             if "!" in token:
                 # Word with converter(s)
                 # e.g., twenty:20!int
-                lhs, *rhs = token.split("!")
-                word.text = lhs
-                word.converters = rhs
+                parts = token.split("!")
+                word.text = parts[0]
+                word.converters = parts[1:]
 
             if ":" in word.text:
                 # Word with substitution
