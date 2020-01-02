@@ -56,16 +56,20 @@ def expression_to_graph(
             empty_substitution = True
 
     # Handle converters begin
+    begin_converters: typing.List[str] = []
+    if isinstance(expression, Taggable) and expression.tag:
+        begin_converters.extend(reversed(expression.tag.converters))
+
     if isinstance(expression, Substitutable) and expression.converters:
-        # Create begin transitions for each converter
-        for converter_name in expression.converters:
-            next_state = len(graph)
-            olabel = f"__convert__{converter_name}"
-            label = f"!{olabel}"
-            graph.add_edge(
-                source_state, next_state, ilabel="", olabel=olabel, label=label
-            )
-            source_state = next_state
+        begin_converters.extend(reversed(expression.converters))
+
+    # Create begin transitions for each converter (in reverse order)
+    for converter_name in begin_converters:
+        next_state = len(graph)
+        olabel = f"__convert__{converter_name}"
+        label = f"!{olabel}"
+        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        source_state = next_state
 
     if isinstance(expression, Sequence):
         # Group, optional, or alternative
@@ -112,7 +116,7 @@ def expression_to_graph(
         next_state = len(graph)
         graph.add_node(next_state, word=word.text)
         ilabel = word.text
-        olabel = word.substitution or word.text
+        olabel = word.text if (word.substitution is None) else word.substitution
 
         if empty_substitution:
             olabel = ""
@@ -180,16 +184,20 @@ def expression_to_graph(
         source_state = next_state
 
     # Handle converters end
+    end_converters: typing.List[str] = []
     if isinstance(expression, Substitutable) and expression.converters:
-        # Create begin transitions for each converter
-        for converter_name in expression.converters:
-            next_state = len(graph)
-            olabel = f"__converted__{converter_name}"
-            label = f"!{olabel}"
-            graph.add_edge(
-                source_state, next_state, ilabel="", olabel=olabel, label=label
-            )
-            source_state = next_state
+        end_converters.extend(expression.converters)
+
+    if isinstance(expression, Taggable) and expression.tag:
+        end_converters.extend(expression.tag.converters)
+
+    # Create end transitions for each converter
+    for converter_name in end_converters:
+        next_state = len(graph)
+        olabel = f"__converted__{converter_name}"
+        label = f"!{olabel}"
+        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        source_state = next_state
 
     # Handle tag end
     if isinstance(expression, Taggable) and expression.tag:

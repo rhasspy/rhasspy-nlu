@@ -1,5 +1,6 @@
 """Recognition functions for sentences using JSGF graphs."""
 from collections import defaultdict
+import itertools
 import time
 import typing
 
@@ -7,6 +8,7 @@ import attr
 import networkx as nx
 
 from .intent import Entity, Intent, Recognition, RecognitionResult
+from .utils import pairwise
 
 # -----------------------------------------------------------------------------
 
@@ -18,7 +20,13 @@ def recognize(
     stop_words: typing.Optional[typing.Set[str]] = None,
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
     word_transform: typing.Optional[typing.Callable[[str], str]] = None,
-    **search_args
+    converters: typing.Optional[
+        typing.Dict[str, typing.Callable[..., typing.Any]]
+    ] = None,
+    extra_converters: typing.Optional[
+        typing.Dict[str, typing.Callable[..., typing.Any]]
+    ] = None,
+    **search_args,
 ) -> typing.List[Recognition]:
     """Recognize one or more intents from tokens or a sentence."""
     start_time = time.perf_counter()
@@ -36,7 +44,7 @@ def recognize(
                 stop_words=stop_words,
                 intent_filter=intent_filter,
                 word_transform=word_transform,
-                **search_args
+                **search_args,
             )
         )
 
@@ -48,7 +56,11 @@ def recognize(
             # Gather all successful fuzzy paths
             for fuzzy_result in best_fuzzy:
                 result, recognition = path_to_recognition(
-                    fuzzy_result.node_path, graph, cost=fuzzy_result.cost
+                    fuzzy_result.node_path,
+                    graph,
+                    cost=fuzzy_result.cost,
+                    converters=converters,
+                    extra_converters=extra_converters,
                 )
                 if result == RecognitionResult.SUCCESS:
                     assert recognition is not None
@@ -64,7 +76,7 @@ def recognize(
                 graph,
                 intent_filter=intent_filter,
                 word_transform=word_transform,
-                **search_args
+                **search_args,
             )
         )
         if (not paths) and stop_words:
@@ -77,14 +89,16 @@ def recognize(
                     exclude_tokens=stop_words,
                     intent_filter=intent_filter,
                     word_transform=word_transform,
-                    **search_args
+                    **search_args,
                 )
             )
 
         end_time = time.perf_counter()
         recognitions = []
         for path in paths:
-            result, recognition = path_to_recognition(path, graph)
+            result, recognition = path_to_recognition(
+                path, graph, converters=converters, extra_converters=extra_converters
+            )
             if result == RecognitionResult.SUCCESS:
                 assert recognition is not None
                 recognition.recognize_seconds = end_time - start_time
@@ -402,11 +416,23 @@ def best_fuzzy_cost(
 # -----------------------------------------------------------------------------
 
 
+@attr.s
+class ConverterInfo:
+    # Name of converter
+    name: str = attr.ib()
+
+    # List of raw/substituted tokens
+    tokens: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
+
+
 def path_to_recognition(
     node_path: typing.Iterable[int],
     graph: nx.DiGraph,
     cost: typing.Optional[float] = None,
     converters: typing.Optional[
+        typing.Dict[str, typing.Callable[..., typing.Any]]
+    ] = None,
+    extra_converters: typing.Optional[
         typing.Dict[str, typing.Callable[..., typing.Any]]
     ] = None,
 ) -> typing.Tuple[RecognitionResult, typing.Optional[Recognition]]:
@@ -416,53 +442,98 @@ def path_to_recognition(
         return RecognitionResult.FAILURE, None
 
     converters = converters or get_default_converters()
+    if extra_converters:
+        # Merge in extra converters
+        converters.update(extra_converters)
+
     node_attrs = graph.nodes(data=True)
     recognition = Recognition(intent=Intent("", confidence=1.0))
 
-    # Text index for substituted and raw text
-    sub_index = 0
-    raw_index = 0
+    # Step 1: go through path pairwise and gather input/output labels
+    raw_sub_tokens: typing.List[typing.Tuple[str, str]] = []
 
-    # Named entities
-    entity_stack: typing.List[Entity] = []
-
-    # Value converters
-    converter_stack: typing.List[typing.List[str]] = []
-
-    # Handle first node
-    node_path_iter = iter(node_path)
-    last_node = next(node_path_iter)
-    word = node_attrs[last_node].get("word", "")
-    if word:
-        recognition.raw_tokens.append(word)
-        raw_index += len(word)
-
-    # Follow path
-    for next_node in node_path_iter:
+    for last_node, next_node in pairwise(node_path):
         # Get raw text
-        word = node_attrs[next_node].get("word", "")
-        if word:
-            recognition.raw_tokens.append(word)
-            raw_index += len(word) + 1
-
-            if entity_stack:
-                last_entity = entity_stack[-1]
-                last_entity.raw_tokens.append(word)
-            elif converter_stack:
-                converter_stack[-1].append(word)
+        word = node_attrs[next_node].get("word") or ""
 
         # Get output label
         edge_data = graph[last_node][next_node]
-        olabel = edge_data.get("olabel", "")
+        olabel = edge_data.get("olabel") or ""
 
-        if olabel:
-            if olabel.startswith("__label__"):
-                # Intent
-                assert recognition.intent is not None
-                recognition.intent.name = olabel[9:]
-            elif olabel.startswith("__begin__"):
+        if olabel.startswith("__label__"):
+            # Intent name
+            assert recognition.intent is not None
+            recognition.intent.name = olabel[9:]
+        elif word or olabel:
+            # Keep non-empty words
+            raw_sub_tokens.append((word, olabel))
+
+    # Step 2: apply converters
+    converter_stack: typing.List[ConverterInfo] = []
+    raw_conv_tokens: typing.List[typing.Tuple[str, typing.Any]] = []
+
+    for raw_token, sub_token in raw_sub_tokens:
+        if sub_token and converter_stack and (not sub_token.startswith("__")):
+            # Add to existing converter
+            converter_stack[-1].tokens.append((raw_token, sub_token))
+        elif sub_token.startswith("__convert__"):
+            # Begin converter
+            converter_name = sub_token[11:]
+            converter_stack.append(ConverterInfo(name=converter_name))
+        elif sub_token.startswith("__converted__"):
+            # End converter
+            assert converter_stack, "Found __converted__ without a __convert__"
+            last_converter = converter_stack.pop()
+            actual_name = sub_token[13:]
+            assert (
+                last_converter.name == actual_name
+            ), f"Mismatched converter name (expected {last_converter.name}, got {actual_name})"
+
+            # Convert and add directly
+            raw_tokens = [t[0] for t in last_converter.tokens if t[0]]
+            sub_tokens = [t[1] for t in last_converter.tokens if t[1]]
+
+            # Run substituted tokens through conversion function
+            converter_func = converters[last_converter.name]
+            converted_tokens = converter_func(*sub_tokens)
+
+            if converter_stack:
+                # Add to parent converter
+                target_list = converter_stack[-1].tokens
+            else:
+                # Add directly to list
+                target_list = raw_conv_tokens
+
+            # Zip 'em up
+            target_list.extend(
+                itertools.zip_longest(raw_tokens, converted_tokens, fillvalue="")
+            )
+        else:
+            raw_conv_tokens.append((raw_token, sub_token))
+
+    assert not converter_stack, f"Converter(s) remaining on stack ({converter_stack})"
+
+    # Step 3: collect entities
+    entity_stack: typing.List[Entity] = []
+    raw_index = 0
+    sub_index = 0
+
+    for raw_token, conv_token in raw_conv_tokens:
+        # Handle raw (input) token
+        if raw_token:
+            recognition.raw_tokens.append(raw_token)
+            raw_index += len(raw_token) + 1
+
+            if entity_stack:
+                last_entity = entity_stack[-1]
+                last_entity.raw_tokens.append(raw_token)
+
+        # Handle converted (output) token
+        if conv_token:
+            conv_token_str = str(conv_token)
+            if conv_token_str.startswith("__begin__"):
                 # Begin tag/entity
-                entity_name = olabel[9:]
+                entity_name = conv_token[9:]
                 entity_stack.append(
                     Entity(
                         entity=entity_name,
@@ -471,19 +542,27 @@ def path_to_recognition(
                         raw_start=raw_index,
                     )
                 )
-            elif olabel.startswith("__end__"):
+            elif conv_token_str.startswith("__end__"):
                 # End tag/entity
                 assert entity_stack, "Found __end__ without a __begin__"
                 last_entity = entity_stack.pop()
-                expected_name = olabel[7:]
-                assert last_entity.entity == expected_name, "Mismatched entity name"
+                actual_name = conv_token[7:]
+                assert (
+                    last_entity.entity == actual_name
+                ), "Mismatched entity name (expected {last_entity.entity}, got {actual_name})"
 
                 # Assign end indexes
                 last_entity.end = sub_index - 1
                 last_entity.raw_end = raw_index - 1
 
                 # Create values
-                last_entity.value = " ".join(last_entity.tokens)
+                if len(last_entity.tokens) == 1:
+                    # Use Python object
+                    last_entity.value = last_entity.tokens[0]
+                else:
+                    # Join as string
+                    last_entity.value = " ".join(str(t) for t in last_entity.tokens)
+
                 last_entity.raw_value = " ".join(last_entity.raw_tokens)
 
                 # Add to recognition
@@ -491,33 +570,17 @@ def path_to_recognition(
             elif entity_stack:
                 # Add to most recent named entity
                 last_entity = entity_stack[-1]
-                last_entity.tokens.append(olabel)
+                last_entity.tokens.append(conv_token)
 
-                recognition.tokens.append(olabel)
-                sub_index += len(olabel) + 1
-
-                # TODO: Handle converters
-            elif olabel.startswith("__convert__"):
-                # Begin converter
-                converter_name = olabel[11:]
-                converter_stack.append(converter_name)
-            elif olabel.startswith("__converted__"):
-                # End converter
-                assert converter_stack, "Found __converted__ without a __convert__"
-                last_converter_name = converter_stack.pop()
-                converter_name = olabel[13:]
-                assert (
-                    last_converter_name == converter_name
-                ), "Mismatched converter name"
+                recognition.tokens.append(conv_token)
+                sub_index += len(conv_token_str) + 1
             else:
                 # Substituted text
-                recognition.tokens.append(olabel)
-                sub_index += len(olabel) + 1
+                recognition.tokens.append(conv_token)
+                sub_index += len(conv_token_str) + 1
 
-        last_node = next_node
-
-    # Create text fields
-    recognition.text = " ".join(recognition.tokens)
+    # Step 4: create text fields and compute confidence
+    recognition.text = " ".join(str(t) for t in recognition.tokens)
     recognition.raw_text = " ".join(recognition.raw_tokens)
 
     if cost and cost > 0:
@@ -528,8 +591,179 @@ def path_to_recognition(
     return RecognitionResult.SUCCESS, recognition
 
 
+# def path_to_recognition(
+#     node_path: typing.Iterable[int],
+#     graph: nx.DiGraph,
+#     cost: typing.Optional[float] = None,
+#     converters: typing.Optional[
+#         typing.Dict[str, typing.Callable[..., typing.Any]]
+#     ] = None,
+#     extra_converters: typing.Optional[
+#         typing.Dict[str, typing.Callable[..., typing.Any]]
+#     ] = None,
+# ) -> typing.Tuple[RecognitionResult, typing.Optional[Recognition]]:
+#     """Transform node path in graph to an intent recognition object."""
+#     if not node_path:
+#         # Empty path indicates failure
+#         return RecognitionResult.FAILURE, None
+
+#     converters = converters or get_default_converters()
+#     if extra_converters:
+#         converters.update(extra_converters)
+
+#     node_attrs = graph.nodes(data=True)
+#     recognition = Recognition(intent=Intent("", confidence=1.0))
+
+#     # Text index for substituted and raw text
+#     sub_index = 0
+#     raw_index = 0
+
+#     # Named entities
+#     entity_stack: typing.List[Entity] = []
+
+#     # Value converters
+#     converter_stack: typing.List[ConverterInfo] = []
+
+#     # Handle first node
+#     node_path_iter = iter(node_path)
+#     last_node = next(node_path_iter)
+#     word = node_attrs[last_node].get("word", "")
+#     if word:
+#         recognition.raw_tokens.append(word)
+#         raw_index += len(word)
+
+#     # Follow path
+#     for next_node in node_path_iter:
+#         # Get raw text
+#         word = node_attrs[next_node].get("word", "")
+#         if word:
+#             if not converter_stack:
+#                 # No conversions
+#                 recognition.raw_tokens.append(word)
+#                 raw_index += len(word) + 1
+
+#             if entity_stack:
+#                 last_entity = entity_stack[-1]
+#                 last_entity.raw_tokens.append(word)
+
+#         # Get output label
+#         edge_data = graph[last_node][next_node]
+#         olabel = edge_data.get("olabel", "")
+
+#         if converter_stack and (not olabel.startswith("__")):
+#             # Add non-meta words
+#             converter_stack[-1].tokens.append((word, olabel))
+
+#         if olabel:
+#             if olabel.startswith("__label__"):
+#                 # Intent
+#                 assert recognition.intent is not None
+#                 recognition.intent.name = olabel[9:]
+#             elif olabel.startswith("__begin__"):
+#                 # Begin tag/entity
+#                 entity_name = olabel[9:]
+#                 entity_stack.append(
+#                     Entity(
+#                         entity=entity_name,
+#                         value="",
+#                         start=sub_index,
+#                         raw_start=raw_index,
+#                     )
+#                 )
+#             elif olabel.startswith("__end__"):
+#                 # End tag/entity
+#                 assert entity_stack, "Found __end__ without a __begin__"
+#                 last_entity = entity_stack.pop()
+#                 actual_name = olabel[7:]
+#                 assert (
+#                     last_entity.entity == actual_name
+#                 ), "Mismatched entity name (expected {last_entity.entity}, got {actual_name})"
+
+#                 # Assign end indexes
+#                 last_entity.end = sub_index - 1
+#                 last_entity.raw_end = raw_index - 1
+
+#                 # Create values
+#                 last_entity.value = " ".join(last_entity.tokens)
+#                 last_entity.raw_value = " ".join(last_entity.raw_tokens)
+
+#                 # Add to recognition
+#                 recognition.entities.append(last_entity)
+#             elif entity_stack:
+#                 # Add to most recent named entity
+#                 last_entity = entity_stack[-1]
+#                 last_entity.tokens.append(olabel)
+
+#                 recognition.tokens.append(olabel)
+#                 sub_index += len(olabel) + 1
+
+#                 # TODO: Handle converters
+#             elif olabel.startswith("__convert__"):
+#                 # Begin converter
+#                 assert not entity_stack, "Cannot start converter with pending entities"
+#                 converter_name = olabel[11:]
+#                 converter_stack.append(ConverterInfo(name=converter_name))
+#             elif olabel.startswith("__converted__"):
+#                 # End converter
+#                 assert converter_stack, "Found __converted__ without a __convert__"
+#                 last_converter = converter_stack.pop()
+#                 actual_name = olabel[13:]
+#                 assert (
+#                     last_converter.name == actual_name
+#                 ), f"Mismatched converter name (expected {last_converter.name}, got {actual_name})"
+
+#                 if entity_stack:
+#                     assert False, "TODO"
+#                 else:
+#                     # Convert and add directly
+#                     raw_tokens = [t[0] for t in last_converter.tokens if t[0]]
+#                     sub_tokens = [
+#                         t[1]
+#                         for t in last_converter.tokens
+#                         if t[1]
+#                     ]
+
+#                     # Run substituted tokens through conversion function
+#                     converter_func = converters[last_converter.name]
+#                     converted_tokens = converter_func(*sub_tokens)
+
+#                     if converter_stack:
+#                         # Add to parent converter
+#                         converter_stack[-1].tokens.extend(
+#                             itertools.zip_longest(raw_tokens, converted_tokens, fillvalue="")
+#                         )
+#                     else:
+#                         # Add directly to recognition
+#                         recognition.tokens.extend(converted_tokens)
+#                         recognition.raw_tokens.extend(raw_tokens)
+#                         raw_index += sum(len(t) + 1 for t in raw_tokens)
+#             elif not converter_stack:
+#                 # Substituted text
+#                 recognition.tokens.append(olabel)
+#                 sub_index += len(olabel) + 1
+
+#         last_node = next_node
+
+#     # Create text fields
+#     recognition.text = " ".join(str(t) for t in recognition.tokens)
+#     recognition.raw_text = " ".join(recognition.raw_tokens)
+
+#     if cost and cost > 0:
+#         # Set fuzzy confidence
+#         assert recognition.intent is not None
+#         recognition.intent.confidence = 1 - (cost / len(recognition.raw_tokens))
+
+#     return RecognitionResult.SUCCESS, recognition
+
+
 # -----------------------------------------------------------------------------
 
 
 def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any]]:
-    return {"int": int, "float": float, "bool": bool}
+    return {
+        "int": lambda *args: map(int, args),
+        "float": lambda *args: map(float, args),
+        "bool": lambda *args: map(bool, args),
+        "lower": lambda *args: map(str.lower, args),
+        "upper": lambda *args: map(str.upper, args),
+    }

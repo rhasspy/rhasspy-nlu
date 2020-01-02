@@ -149,6 +149,18 @@ class BasicJsgfTestCase(unittest.TestCase):
             ],
         )
 
+    def test_entity_converters(self):
+        """Test multiple converters on a tag/entity"""
+        s = Sentence.parse("this is a{test!c1!c2}")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Word("is"),
+                Word("a", tag=Tag(tag_text="test", converters=["c1", "c2"])),
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 

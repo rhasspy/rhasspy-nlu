@@ -123,32 +123,30 @@ class StrictTestCase(unittest.TestCase):
         intents = parse_ini(
             """
         [TestIntent]
-        this is a test!c1
+        this is a test!upper ten:10!int!square
         """
         )
 
         graph = intents_to_graph(intents)
 
         # Recognition should still work
-        recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
+        recognitions = zero_times(
+            recognize(
+                "this is a test ten",
+                graph,
+                fuzzy=False,
+                extra_converters={"square": lambda *args: [x ** 2 for x in args]},
+            )
+        )
         self.assertEqual(
             recognitions,
             [
                 Recognition(
                     intent=Intent(name="TestIntent", confidence=1),
-                    text="this is a test",
-                    raw_text="this is a test",
-                    tokens=[
-                        "this",
-                        "is",
-                        "a",
-                        "__begin_convert__c1",
-                        "__begin_convert__c2",
-                        "test",
-                        "__end_convert__c1",
-                        "__end_convert__c2",
-                    ],
-                    raw_tokens=["this", "is", "a", "test"],
+                    text="this is a TEST 100",
+                    raw_text="this is a test ten",
+                    tokens=["this", "is", "a", "TEST", 100],
+                    raw_tokens=["this", "is", "a", "test", "ten"],
                 )
             ],
         )
@@ -425,6 +423,84 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertIn("zone", entities)
         zone = entities["zone"]
         self.assertEqual(zone.value, "bedroom")
+
+    def test_converters_in_entities(self):
+        """Check sentence with converters inside an entity."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this is a test (ten:10!int){number}
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        # ten -> 10 (int)
+        recognitions = zero_times(recognize("this is a test ten", graph, fuzzy=False))
+
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertTrue(recognition.intent)
+
+        entities = {e.entity: e for e in recognition.entities}
+        self.assertIn("number", entities)
+        number = entities["number"]
+        self.assertEqual(number.value, 10)
+
+    def test_entity_converter(self):
+        """Check sentence with an entity converter."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this is a test (four: point: two:4.2){number!float}
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        # "four point two" -> 4.2
+        recognitions = zero_times(
+            recognize("this is a test four point two", graph, fuzzy=False)
+        )
+
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertTrue(recognition.intent)
+
+        entities = {e.entity: e for e in recognition.entities}
+        self.assertIn("number", entities)
+        number = entities["number"]
+        self.assertEqual(number.value, 4.2)
+
+    def test_entity_converters_both(self):
+        """Check sentence with an entity converter and a converter inside the entity."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this is a test (four:4 point: two:2){number!floatify}
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        # "four two" -> 4.2
+        recognitions = zero_times(
+            recognize(
+                "this is a test four point two",
+                graph,
+                fuzzy=False,
+                extra_converters={"floatify": lambda a, b: [float(f"{a}.{b}")]},
+            )
+        )
+
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertTrue(recognition.intent)
+
+        entities = {e.entity: e for e in recognition.entities}
+        self.assertIn("number", entities)
+        number = entities["number"]
+        self.assertEqual(number.value, 4.2)
 
 
 # -----------------------------------------------------------------------------

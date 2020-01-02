@@ -375,10 +375,21 @@ def parse_expression(
                 # Exclude {}
                 tag.tag_text = text[current_index + 1 : next_index - 1]
 
-                if ":" in tag.tag_text:
-                    lhs, rhs = tag.tag_text.split(":", maxsplit=1)
-                    tag.tag_text = lhs
-                    tag.substitution = rhs
+                # Handle substitution/converter(s)
+                if ":" in tag.tag_text or "!" in tag.tag_text:
+                    if "!" in tag.tag_text:
+                        # Word with converter(s)
+                        # e.g., twenty:20!int
+                        parts = tag.tag_text.split("!")
+                        tag.tag_text = parts[0]
+                        tag.converters = parts[1:]
+
+                    if ":" in tag.tag_text:
+                        # Word with substitution
+                        # e.g., twenty:20
+                        lhs, rhs = tag.tag_text.split(":", maxsplit=1)
+                        tag.tag_text = lhs
+                        tag.substitution = rhs
 
                 last_taggable.tag = tag
             elif c == "|":
