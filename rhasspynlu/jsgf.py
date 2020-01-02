@@ -252,9 +252,11 @@ def parse_expression(
             found = True
             break
 
-        if (c == ":") and (last_c in [")", "]"]):
-            # Handle sequence substitution
-            assert isinstance(last_taggable, Substitutable)
+        if (c in [":", "!"]) and (last_c in [")", "]"]):
+            # Handle sequence substitution/conversion
+            if c == ":":
+                assert isinstance(last_taggable, Substitutable)
+
             next_index = parse_expression(
                 None, text[current_index + 1 :], end=[" "] + end, is_literal=False
             )
@@ -265,13 +267,19 @@ def parse_expression(
             else:
                 next_index += current_index - 1
 
-            sub_text = text[current_index + 1 : next_index].strip()
-            if "!" in sub_text:
-                # Extract converter(s)
-                sub_text, *converters = sub_text.split("!")
-                last_taggable.converters = converters
+            if c == ":":
+                # Substition/conversion
+                sub_text = text[current_index + 1 : next_index].strip()
+                if "!" in sub_text:
+                    # Extract converter(s)
+                    sub_text, *converters = sub_text.split("!")
+                    last_taggable.converters = converters
 
-            last_taggable.substitution = sub_text
+                last_taggable.substitution = sub_text
+            else:
+                # Conversion only
+                conv_text = text[current_index + 1 : next_index].strip()
+                last_taggable.converters = conv_text.split("!")
 
         elif c in ["<", "(", "[", "{", "|"]:
             # Begin group/tag/alt/etc.

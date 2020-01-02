@@ -161,6 +161,22 @@ class BasicJsgfTestCase(unittest.TestCase):
             ],
         )
 
+    def test_sequence_converters(self):
+        """Test multiple converters on a sequence"""
+        s = Sentence.parse("this (is a test)!c1!c2")
+        self.assertEqual(
+            s.items,
+            [
+                Word("this"),
+                Sequence(
+                    text="is a test",
+                    type=SequenceType.GROUP,
+                    items=[Word("is"), Word("a"), Word("test")],
+                    converters=["c1", "c2"],
+                ),
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 

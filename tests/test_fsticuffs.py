@@ -129,7 +129,7 @@ class StrictTestCase(unittest.TestCase):
 
         graph = intents_to_graph(intents)
 
-        # Recognition should still work
+        # Should upper-case "test" and convert "ten" -> 10 -> 100
         recognitions = zero_times(
             recognize(
                 "this is a test ten",
@@ -501,6 +501,32 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertIn("number", entities)
         number = entities["number"]
         self.assertEqual(number.value, 4.2)
+
+    def test_sequence_converters(self):
+        """Check sentence with sequence converters."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this (is a test)!upper
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        # Should upper-case "is a test"
+        recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
+        self.assertEqual(
+            recognitions,
+            [
+                Recognition(
+                    intent=Intent(name="TestIntent", confidence=1),
+                    text="this IS A TEST",
+                    raw_text="this is a test",
+                    tokens=["this", "IS", "A", "TEST"],
+                    raw_tokens=["this", "is", "a", "test"],
+                )
+            ],
+        )
 
 
 # -----------------------------------------------------------------------------
