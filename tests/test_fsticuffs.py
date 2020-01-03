@@ -392,7 +392,7 @@ class TimerTestCase(unittest.TestCase):
 
     def setUp(self):
         # Load timer example
-        self.graph = intents_to_graph(parse_ini(Path("etc") / "timer.ini"))
+        self.graph = intents_to_graph(parse_ini(Path("etc/timer.ini")))
 
     def test_strict_simple(self):
         """Check exact parse."""

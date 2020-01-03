@@ -93,7 +93,7 @@ def parse_ini(
                     sentence = k.strip()
 
                     # Fix \[ escape sequence
-                    sentence = re.sub(r"\\\[", "[", sentence)
+                    sentence = sentence.replace('\\[', '[')
 
                     if sentence_transform:
                         # Do transform
@@ -108,10 +108,10 @@ def parse_ini(
                         sentence = sentence_transform(sentence)
 
                     # Collect key/value pairs as JSGF rules
-                    rule = "<{0}> = ({1});".format(k.strip(), sentence)
+                    rule = f"<{k.strip()}> = ({sentence});"
 
                     # Fix \[ escape sequence
-                    rule = re.sub(r"\\\[", "[", rule)
+                    rule = rule.replace('\\[', '[')
 
                     sentences[sec_name].append(Rule.parse(rule))
     finally:
