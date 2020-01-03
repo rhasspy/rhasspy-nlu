@@ -60,7 +60,7 @@ def fst_to_arpa_tasks(
     """Generate doit compatible tasks for FST to ARPA conversion."""
     # Text -> FST
     fst_text_path = Path(fst_text_path)
-    fst_path = Path(fst_path or (fst_text_path.parent / (fst_text_path.stem + ".fst")))
+    fst_path = Path(fst_path or fst_text_path.with_suffix(".fst"))
 
     yield {
         "name": "compile_fst",
