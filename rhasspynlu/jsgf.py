@@ -192,7 +192,7 @@ def walk_expression(
 
 def split_words(text: str) -> typing.Iterable[Expression]:
     """Split words by whitespace. Detect slot references and substitutions."""
-    for token in re.split(r"\s+", text):
+    for token in text.split():
         if token.startswith("$"):
             if ":" in token:
                 # Slot with substitutions
@@ -273,7 +273,7 @@ def parse_expression(
             found = True
             break
 
-        if (c in [":", "!"]) and (last_c in [")", "]"]):
+        if (c in {":", "!"}) and (last_c in {")", "]"}):
             # Handle sequence substitution/conversion
             assert isinstance(last_taggable, Substitutable)
 
@@ -301,7 +301,7 @@ def parse_expression(
                 conv_text = text[current_index + 1 : next_index].strip()
                 last_taggable.converters = conv_text.split("!")
 
-        elif c in ["<", "(", "[", "{", "|"]:
+        elif c in {"<", "(", "[", "{", "|"}:
             # Begin group/tag/alt/etc.
 
             # Break literal here
