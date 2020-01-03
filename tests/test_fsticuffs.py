@@ -151,6 +151,43 @@ class StrictTestCase(unittest.TestCase):
             ],
         )
 
+    def test_converter_args(self):
+        """Check converter with arguments."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this is a test ten:10!int!pow,3
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        def pow_converter(*args, converter_args=None):
+            exponent = int(converter_args[0]) if converter_args else 1
+            return [x ** exponent for x in args]
+
+        # Should convert "ten" -> 10 -> 1000
+        recognitions = zero_times(
+            recognize(
+                "this is a test ten",
+                graph,
+                fuzzy=False,
+                extra_converters={"pow": pow_converter},
+            )
+        )
+        self.assertEqual(
+            recognitions,
+            [
+                Recognition(
+                    intent=Intent(name="TestIntent", confidence=1),
+                    text="this is a test 1000",
+                    raw_text="this is a test ten",
+                    tokens=["this", "is", "a", "test", 1000],
+                    raw_tokens=["this", "is", "a", "test", "ten"],
+                )
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 

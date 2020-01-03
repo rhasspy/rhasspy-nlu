@@ -420,8 +420,14 @@ def best_fuzzy_cost(
 class ConverterInfo:
     """Local info for converter stack in path_to_recognition"""
 
+    # Name + args
+    key: str = attr.ib()
+
     # Name of converter
     name: str = attr.ib()
+
+    # Optional arguments passed using name,arg1,arg2,...
+    args: typing.Optional[typing.List[str]] = attr.ib(default=None)
 
     # List of raw/substituted tokens
     tokens: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
@@ -481,16 +487,29 @@ def path_to_recognition(
             converter_stack[-1].tokens.append((raw_token, sub_token))
         elif sub_token.startswith("__convert__"):
             # Begin converter
-            converter_name = sub_token[11:]
-            converter_stack.append(ConverterInfo(name=converter_name))
+            converter_key = sub_token[11:]
+            converter_name = converter_key
+            converter_args: typing.Optional[typing.List[str]] = None
+
+            # Detect arguments
+            if "," in converter_name:
+                parts = converter_name.split(",")
+                converter_name = parts[0]
+                converter_args = parts[1:]
+
+            converter_stack.append(
+                ConverterInfo(
+                    key=converter_key, name=converter_name, args=converter_args
+                )
+            )
         elif sub_token.startswith("__converted__"):
             # End converter
             assert converter_stack, "Found __converted__ without a __convert__"
             last_converter = converter_stack.pop()
-            actual_name = sub_token[13:]
+            actual_key = sub_token[13:]
             assert (
-                last_converter.name == actual_name
-            ), f"Mismatched converter name (expected {last_converter.name}, got {actual_name})"
+                last_converter.key == actual_key
+            ), f"Mismatched converter name (expected {last_converter.key}, got {actual_key})"
 
             # Convert and add directly
             raw_tokens = [t[0] for t in last_converter.tokens if t[0]]
@@ -498,7 +517,12 @@ def path_to_recognition(
 
             # Run substituted tokens through conversion function
             converter_func = converters[last_converter.name]
-            converted_tokens = converter_func(*sub_tokens)
+
+            # Pass arguments as keyword "converter_args"
+            converter_kwargs = (
+                {"converter_args": last_converter.args} if last_converter.args else {}
+            )
+            converted_tokens = converter_func(*sub_tokens, **converter_kwargs)
 
             if converter_stack:
                 # Add to parent converter
