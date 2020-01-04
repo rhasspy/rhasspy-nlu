@@ -167,22 +167,22 @@ def walk_expression(
             expression.rule_body = new_body
     elif isinstance(expression, RuleReference):
         key = f"<{expression.rule_name}>"
-        assert replacements, key
-        key_replacements = replacements[key]
-        for i in range(len(key_replacements)):
-            new_item = walk_expression(key_replacements[i], visit, replacements)
-            if new_item:
-                assert isinstance(new_item, Expression)
-                key_replacements[i] = new_item
+        if key in replacements:
+            key_replacements = replacements[key]
+            for i in range(len(key_replacements)):
+                new_item = walk_expression(key_replacements[i], visit, replacements)
+                if new_item:
+                    assert isinstance(new_item, Expression)
+                    key_replacements[i] = new_item
     elif isinstance(expression, SlotReference):
         key = f"${expression.slot_name}"
-        assert replacements, key
-        key_replacements = replacements[key]
-        for i in range(len(key_replacements)):
-            new_item = walk_expression(key_replacements[i], visit, replacements)
-            if new_item:
-                assert isinstance(new_item, Expression)
-                key_replacements[i] = new_item
+        if key in replacements:
+            key_replacements = replacements[key]
+            for i in range(len(key_replacements)):
+                new_item = walk_expression(key_replacements[i], visit, replacements)
+                if new_item:
+                    assert isinstance(new_item, Expression)
+                    key_replacements[i] = new_item
 
     return expression
 
