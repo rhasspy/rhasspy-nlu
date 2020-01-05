@@ -93,7 +93,7 @@ def parse_ini(
                     sentence = k.strip()
 
                     # Fix \[ escape sequence
-                    sentence = sentence.replace('\\[', '[')
+                    sentence = sentence.replace("\\[", "[")
 
                     if sentence_transform:
                         # Do transform
@@ -111,7 +111,7 @@ def parse_ini(
                     rule = f"<{k.strip()}> = ({sentence});"
 
                     # Fix \[ escape sequence
-                    rule = rule.replace('\\[', '[')
+                    rule = rule.replace("\\[", "[")
 
                     sentences[sec_name].append(Rule.parse(rule))
     finally:

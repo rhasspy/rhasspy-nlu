@@ -1,3 +1,4 @@
+"""Setup script for rhasspy-hermes package"""
 import os
 import setuptools
 
