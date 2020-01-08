@@ -1,20 +1,25 @@
-PYTHON_FILES = rhasspynlu/*.py tests/*.py *.py
+SOURCE = rhasspynlu
+PYTHON_FILES = $(SOURCE)/*.py tests/*.py *.py
+SHELL_FILES = bin/* debian/bin/*
 
-.PHONY: black check test dist venv
+.PHONY: reformat check test dist venv
 
-black:
+reformat:
 	black .
+	isort $(PYTHON_FILES)
 
 check:
 	flake8 $(PYTHON_FILES)
 	pylint $(PYTHON_FILES)
 	mypy $(PYTHON_FILES)
 	black --check .
+	isort --check-only $(PYTHON_FILES)
+	bashate $(SHELL_FILES)
 	yamllint .
 	pip list --outdated
 
 test:
-	coverage run -m unittest
+	coverage run --source=$(SOURCE) -m unittest
 	coverage report -m
 	coverage xml
 
