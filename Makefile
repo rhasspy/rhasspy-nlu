@@ -1,6 +1,5 @@
 SOURCE = rhasspynlu
 PYTHON_FILES = $(SOURCE)/*.py tests/*.py *.py
-SHELL_FILES = bin/* debian/bin/*
 
 .PHONY: reformat check test dist venv
 
@@ -11,10 +10,9 @@ reformat:
 check:
 	flake8 $(PYTHON_FILES)
 	pylint $(PYTHON_FILES)
-	mypy $(PYTHON_FILES)
+	#mypy $(PYTHON_FILES)
 	black --check .
 	isort --check-only $(PYTHON_FILES)
-	bashate $(SHELL_FILES)
 	yamllint .
 	pip list --outdated
 
