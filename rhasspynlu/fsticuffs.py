@@ -1,8 +1,8 @@
 """Recognition functions for sentences using JSGF graphs."""
-from collections import defaultdict
 import itertools
 import time
 import typing
+from collections import defaultdict
 
 import attr
 import networkx as nx

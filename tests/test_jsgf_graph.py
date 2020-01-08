@@ -3,11 +3,11 @@ import unittest
 
 from rhasspynlu.ini_jsgf import parse_ini
 from rhasspynlu.jsgf_graph import (
-    intents_to_graph,
-    graph_to_fst,
-    graph_to_fsts,
     GraphFst,
     GraphFsts,
+    graph_to_fst,
+    graph_to_fsts,
+    intents_to_graph,
 )
 
 

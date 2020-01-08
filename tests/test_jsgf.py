@@ -2,13 +2,13 @@
 import unittest
 
 from rhasspynlu.jsgf import (
+    RuleReference,
     Sentence,
-    Word,
     Sequence,
     SequenceType,
-    RuleReference,
     SlotReference,
     Tag,
+    Word,
     get_expression_count,
     walk_expression,
 )

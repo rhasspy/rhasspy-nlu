@@ -1,11 +1,11 @@
 """Parsing code for ini/JSGF grammars."""
-import io
 import configparser
+import io
 import logging
-from pathlib import Path
 import re
 import typing
 from collections import defaultdict
+from pathlib import Path
 
 import attr
 

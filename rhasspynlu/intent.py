@@ -1,8 +1,8 @@
 """
 Data structures for intent recognition.
 """
-from enum import Enum
 import typing
+from enum import Enum
 
 import attr
 
