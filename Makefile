@@ -10,7 +10,7 @@ reformat:
 check:
 	flake8 $(PYTHON_FILES)
 	pylint $(PYTHON_FILES)
-	#mypy $(PYTHON_FILES)
+	mypy $(PYTHON_FILES)
 	black --check .
 	isort --check-only $(PYTHON_FILES)
 	yamllint .
