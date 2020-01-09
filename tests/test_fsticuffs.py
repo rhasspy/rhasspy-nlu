@@ -2,11 +2,11 @@
 import unittest
 from pathlib import Path
 
-from rhasspynlu.ini_jsgf import parse_ini
-from rhasspynlu.jsgf_graph import intents_to_graph
 from rhasspynlu.fsticuffs import recognize
-from rhasspynlu.intent import Recognition, Intent, Entity
+from rhasspynlu.ini_jsgf import parse_ini
+from rhasspynlu.intent import Entity, Intent, Recognition
 from rhasspynlu.jsgf import Sentence
+from rhasspynlu.jsgf_graph import intents_to_graph
 
 
 class StrictTestCase(unittest.TestCase):

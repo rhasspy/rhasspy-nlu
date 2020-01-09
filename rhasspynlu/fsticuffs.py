@@ -1,8 +1,8 @@
 """Recognition functions for sentences using JSGF graphs."""
-from collections import defaultdict
 import itertools
 import time
 import typing
+from collections import defaultdict
 
 import attr
 import networkx as nx
@@ -291,9 +291,14 @@ def paths_fuzzy(
 
     # BFS it up
     while node_queue:
-        q_node, q_in_tokens, q_out_nodes, q_out_count, q_cost, q_intent = node_queue.pop(
-            0
-        )
+        (
+            q_node,
+            q_in_tokens,
+            q_out_nodes,
+            q_out_count,
+            q_cost,
+            q_intent,
+        ) = node_queue.pop(0)
         is_final: bool = n_data[q_node].get("final", False)
 
         # Update best intent cost on final state.
