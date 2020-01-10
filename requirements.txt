@@ -1,2 +1,2 @@
-networkx==2.3
+networkx==2.4
 attrs==19.3.0
