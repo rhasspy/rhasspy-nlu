@@ -32,6 +32,7 @@ def expression_to_graph(
     replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
     empty_substitution: bool = False,
     grammar_name: typing.Optional[str] = None,
+    count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
 ) -> int:
     """Insert JSGF expression into a graph. Return final state."""
     replacements = replacements or {}
@@ -86,6 +87,7 @@ def expression_to_graph(
                     replacements=replacements,
                     empty_substitution=empty_substitution,
                     grammar_name=grammar_name,
+                    count_dict=count_dict,
                 )
                 final_states.append(next_state)
 
@@ -107,6 +109,7 @@ def expression_to_graph(
                     replacements=replacements,
                     empty_substitution=empty_substitution,
                     grammar_name=grammar_name,
+                    count_dict=count_dict,
                 )
 
             source_state = next_state
@@ -153,6 +156,7 @@ def expression_to_graph(
             replacements=replacements,
             empty_substitution=empty_substitution,
             grammar_name=grammar_name,
+            count_dict=count_dict,
         )
     elif isinstance(expression, SlotReference):
         # Reference to slot values
@@ -172,6 +176,7 @@ def expression_to_graph(
             replacements=replacements,
             empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
             grammar_name=grammar_name,
+            count_dict=count_dict,
         )
 
     # Handle sequence substitution
@@ -236,11 +241,15 @@ def intents_to_graph(
     sentences, replacements = split_rules(intents, replacements)
     num_intents = len(sentences)
     intent_weights: typing.Dict[str, float] = {}
+    count_dict: typing.Optional[typing.Dict[Expression, int]] = None
 
     if add_intent_weights:
         # Count number of posssible sentences per intent
         intent_counts = get_intent_counts(  # type: ignore
-            sentences, replacements, exclude_slots=exclude_slots_from_counts
+            sentences,
+            replacements,
+            exclude_slots=exclude_slots_from_counts,
+            count_dict=count_dict,
         )
 
         # Fix zero counts
@@ -296,6 +305,7 @@ def intents_to_graph(
                 intent_state,
                 replacements=replacements,
                 grammar_name=intent_name,
+                count_dict=count_dict,
             )
             final_states.append(next_state)
 

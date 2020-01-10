@@ -6,7 +6,7 @@ from enum import Enum
 import attr
 
 
-@attr.s
+@attr.s(hash=False)
 class Substitutable:
     """Indicates an expression may be replaced with some text."""
 
@@ -17,7 +17,7 @@ class Substitutable:
     converters: typing.List[str] = attr.ib(factory=list)
 
 
-@attr.s
+@attr.s(hash=False)
 class Tag(Substitutable):
     """{tag} attached to an expression."""
 
@@ -25,7 +25,7 @@ class Tag(Substitutable):
     tag_text: str = attr.ib(default="")
 
 
-@attr.s
+@attr.s(hash=False)
 class Taggable:
     """Indicates an expression may be tagged."""
 
@@ -33,7 +33,7 @@ class Taggable:
     tag: typing.Optional[Tag] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(hash=False)
 class Expression:
     """Base class for most JSGF types."""
 
@@ -41,7 +41,7 @@ class Expression:
     text: str = attr.ib(default="")
 
 
-@attr.s
+@attr.s(hash=False)
 class Word(Expression, Taggable, Substitutable):
     """Single word/token."""
 
@@ -58,7 +58,7 @@ class SequenceType(str, Enum):
     ALTERNATIVE = "alternative"
 
 
-@attr.s
+@attr.s(hash=False)
 class Sequence(Expression, Taggable, Substitutable):
     """Ordered sequence of expressions. Supports groups, optionals, and alternatives."""
 
@@ -69,7 +69,7 @@ class Sequence(Expression, Taggable, Substitutable):
     type: SequenceType = attr.ib(default=SequenceType.GROUP)
 
 
-@attr.s
+@attr.s(hash=False)
 class RuleReference(Expression, Taggable):
     """Reference to a rule by <name> or <grammar.name>."""
 
@@ -80,7 +80,7 @@ class RuleReference(Expression, Taggable):
     grammar_name: typing.Optional[str] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(hash=False)
 class SlotReference(Expression, Taggable, Substitutable):
     """Reference to a slot by $name."""
 
@@ -88,7 +88,7 @@ class SlotReference(Expression, Taggable, Substitutable):
     slot_name: str = attr.ib(default="")
 
 
-@attr.s
+@attr.s(hash=False)
 class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
@@ -107,7 +107,7 @@ class Sentence(Sequence):
         )
 
 
-@attr.s
+@attr.s(hash=False)
 class Rule:
     """Named rule with body."""
 
@@ -493,6 +493,7 @@ def get_expression_count(
     expression: Expression,
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
     exclude_slots: bool = True,
+    count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
 ) -> int:
     """Get the number of possible sentences in an expression."""
     if isinstance(expression, Sequence):
@@ -500,32 +501,75 @@ def get_expression_count(
             # Counts multiply down the sequence
             count = 1
             for sub_item in expression.items:
-                count = count * get_expression_count(sub_item, replacements)
+                count = count * get_expression_count(
+                    sub_item,
+                    replacements,
+                    exclude_slots=exclude_slots,
+                    count_dict=count_dict,
+                )
+
+            if count_dict is not None:
+                count_dict[expression] = count
 
             return count
 
         if expression.type == SequenceType.ALTERNATIVE:
             # Counts sum across the alternatives
-            return sum(
-                get_expression_count(sub_item, replacements)
+            count = sum(
+                get_expression_count(
+                    sub_item,
+                    replacements,
+                    exclude_slots=exclude_slots,
+                    count_dict=count_dict,
+                )
                 for sub_item in expression.items
             )
+
+            if count_dict is not None:
+                count_dict[expression] = count
+
+            return count
     elif isinstance(expression, RuleReference):
         # Get substituted sentences for <rule>
         key = f"<{expression.rule_name}>"
         assert replacements, key
-        return sum(
-            get_expression_count(value, replacements) for value in replacements[key]
+        count = sum(
+            get_expression_count(
+                value, replacements, exclude_slots=exclude_slots, count_dict=count_dict
+            )
+            for value in replacements[key]
         )
+
+        if count_dict is not None:
+            count_dict[expression] = count
+
+        return count
     elif (not exclude_slots) and isinstance(expression, SlotReference):
         # Get substituted sentences for $slot
         key = f"${expression.slot_name}"
         assert replacements, key
-        return sum(
-            get_expression_count(value, replacements) for value in replacements[key]
+        count = sum(
+            get_expression_count(
+                value, replacements, exclude_slots=exclude_slots, count_dict=count_dict
+            )
+            for value in replacements[key]
         )
+
+        if count_dict is not None:
+            count_dict[expression] = count
+
+        return count
     elif isinstance(expression, Word):
         # Single word
-        return 1
+        count = 1
+        if count_dict is not None:
+            count_dict[expression] = count
 
-    return 0
+        return count
+
+    # Unknown expression type
+    count = 0
+    if count_dict is not None:
+        count_dict[expression] = count
+
+    return count
