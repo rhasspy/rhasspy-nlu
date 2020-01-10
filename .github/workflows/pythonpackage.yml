@@ -4,10 +4,11 @@ name: Test Python package
 on: [push, pull_request]
 
 jobs:
-  build:
+  test:
 
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-18.04, macos-latest]
         python-version: [3.6, 3.7, 3.8]
@@ -36,3 +37,14 @@ jobs:
         run: make test
       - name: Make package
         run: make dist
+  tagging:
+    needs: [test]
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Bump version and push tag
+        uses: maxbachmann/rhasspy-tag-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: bump_tag
