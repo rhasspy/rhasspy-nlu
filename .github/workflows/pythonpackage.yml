@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Bump version and push tag
-        uses: maxbachmann/rhasspy-tag-action@master
+        uses: rhasspy/rhasspy-tag-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: bump_tag
