@@ -1,6 +1,6 @@
 # Rhasspy Natural Language Understanding
 
-![Travis CI build status](https://travis-ci.com/synesthesiam/rhasspy-nlu.svg?branch=master)
+[![Continous Integration](https://github.com/rhasspy/rhasspy-nlu/workflows/Test%20Python%20package/badge.svg)](https://github.com/rhasspy/rhasspy-nlu/actions)
 
 Library for parsing Rhasspy sentence templates, doing intent recognition, and generating ARPA language models.
 
