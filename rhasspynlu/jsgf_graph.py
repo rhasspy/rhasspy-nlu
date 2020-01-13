@@ -542,3 +542,26 @@ def lcm(*nums: int) -> int:
         return nums_lcm
 
     return 1
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_start_end_nodes(
+    graph: nx.DiGraph
+) -> typing.Tuple[typing.Optional[int], typing.Optional[int]]:
+    """Return start/end nodes in graph"""
+    n_data = graph.nodes(data=True)
+    start_node = None
+    end_node = None
+
+    for node, data in n_data:
+        if data.get("start", False):
+            start_node = node
+        elif data.get("final", False):
+            end_node = node
+
+        if (start_node is not None) and (end_node is not None):
+            break
+
+    return (start_node, end_node)
