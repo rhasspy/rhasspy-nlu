@@ -7,20 +7,9 @@ from pathlib import Path
 import attr
 import networkx as nx
 
-from .jsgf import (
-    Sentence,
-    Rule,
-    RuleReference,
-    SlotReference,
-    Word,
-    Sequence,
-    SequenceType,
-    Expression,
-    Taggable,
-    Substitutable,
-)
-
-from .ini_jsgf import split_rules, get_intent_counts
+from .ini_jsgf import get_intent_counts, split_rules
+from .jsgf import (Expression, Rule, RuleReference, Sentence, Sequence,
+                   SequenceType, SlotReference, Substitutable, Taggable, Word)
 
 # -----------------------------------------------------------------------------
 

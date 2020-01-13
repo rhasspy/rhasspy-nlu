@@ -1,8 +1,9 @@
 """Test cases for ini/JSGF grammar parser."""
 import unittest
 
-from rhasspynlu.ini_jsgf import parse_ini, get_intent_counts, split_rules
-from rhasspynlu.jsgf import Sentence, Word, Sequence, SequenceType, walk_expression
+from rhasspynlu.ini_jsgf import get_intent_counts, parse_ini, split_rules
+from rhasspynlu.jsgf import (Sentence, Sequence, SequenceType, Word,
+                             walk_expression)
 
 
 class IniJsgfTestCase(unittest.TestCase):

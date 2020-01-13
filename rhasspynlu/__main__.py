@@ -2,11 +2,11 @@
 import argparse
 import io
 import json
-import os
 import logging
+import os
 import sys
 
-from . import parse_ini, intents_to_graph, graph_to_json, graph_to_fst
+from . import graph_to_fst, graph_to_json, intents_to_graph, parse_ini
 
 _LOGGER = logging.getLogger(__name__)
 

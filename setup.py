@@ -1,4 +1,6 @@
+"""Set up for rhasspynlu"""
 import os
+
 import setuptools
 
 this_dir = os.path.abspath(os.path.dirname(__file__))

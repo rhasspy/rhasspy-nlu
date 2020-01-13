@@ -167,7 +167,7 @@ def walk_expression(
             expression.rule_body = new_body
     elif isinstance(expression, RuleReference):
         key = f"<{expression.rule_name}>"
-        if key in replacements:
+        if replacements and (key in replacements):
             key_replacements = replacements[key]
             for i in range(len(key_replacements)):
                 new_item = walk_expression(key_replacements[i], visit, replacements)
@@ -176,7 +176,7 @@ def walk_expression(
                     key_replacements[i] = new_item
     elif isinstance(expression, SlotReference):
         key = f"${expression.slot_name}"
-        if key in replacements:
+        if replacements and (key in replacements):
             key_replacements = replacements[key]
             for i in range(len(key_replacements)):
                 new_item = walk_expression(key_replacements[i], visit, replacements)

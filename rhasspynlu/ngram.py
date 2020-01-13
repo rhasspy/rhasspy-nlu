@@ -12,8 +12,11 @@ from .jsgf_graph import get_start_end_nodes
 def get_intent_ngram_counts(
     graph: nx.DiGraph, pad_start="<s>", pad_end="</s>", order=3
 ) -> typing.Dict[str, Counter]:
-    intent_counts = defaultdict(Counter)
+    """Gets ngram counts per intent for a JSGF graph"""
+    intent_counts: typing.Dict[str, Counter] = defaultdict(Counter)
     start_node, end_node = get_start_end_nodes(graph)
+    assert (start_node is not None) and (end_node is not None)
+
     word_graph = to_word_graph(
         graph, start_node, end_node, pad_start=pad_start, pad_end=pad_end
     )
@@ -33,6 +36,7 @@ def get_intent_ngram_counts(
 
         # Filter out nodes not part of this intent
         def filter_node(n):
+            # pylint: disable=W0640
             return n in valid_nodes
 
         # Compute ngram counts using a view of the main word graph restricted to
@@ -67,10 +71,10 @@ def count_ngrams(
     n_data = word_graph.nodes(data=True)
 
     # Counts from a node to <s>
-    up_counts = Counter()
+    up_counts: Counter = Counter()
 
     # Counts from a node to </s>
-    down_counts = Counter()
+    down_counts: Counter = Counter()
 
     # Top/bottom = 1
     up_counts[start_node] = 1
@@ -90,7 +94,7 @@ def count_ngrams(
             down_counts[n] += down_counts[n2]
 
     # Compute counts
-    ngram_counts = Counter()
+    ngram_counts: Counter = Counter()
     for n in word_graph:
         # Unigram
         word = n_data[n][label]

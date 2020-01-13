@@ -320,8 +320,71 @@ assert recognitions[0].tokens[-1] == 8
 
 ## ARPA Language Models
 
+You can compute [ngram counts](https://en.wikipedia.org/wiki/N-gram) from a `rhasspynlu` graph, useful for generating [ARPA language models](https://cmusphinx.github.io/wiki/arpaformat/). These models can be used by speech recognition systems, such as [Pocketsphinx](https://github.com/cmusphinx/pocketsphinx), [Kaldi](https://kaldi-asr.org), and [Julius](https://github.com/julius-speech/julius).
+
+```python
+import rhasspynlu
+
+# Load and parse
+intents = rhasspynlu.parse_ini(
+"""
+[SetColor]
+set light to (red | green | blue)
+"""
+)
+
+graph = rhasspynlu.intents_to_graph(intents)
+counts = rhasspynlu.get_intent_ngram_counts(
+    graph,
+    pad_start="<s>",
+    pad_end="</s>",
+    order=3
+)
+
+# Print counts by intent
+for intent_name in counts:
+    print(intent_name)
+    for ngram, count in counts[intent_name].items():
+        print(ngram, count)
+        
+    print("")
+```
+
+will print something like:
+
+```
+SetColor
+('<s>',) 3
+('set',) 3
+('<s>', 'set') 3
+('light',) 3
+('set', 'light') 3
+('<s>', 'set', 'light') 3
+('to',) 3
+('light', 'to') 3
+('set', 'light', 'to') 3
+('red',) 1
+('to', 'red') 1
+('light', 'to', 'red') 1
+('green',) 1
+('to', 'green') 1
+('light', 'to', 'green') 1
+('blue',) 1
+('to', 'blue') 1
+('light', 'to', 'blue') 1
+('</s>',) 3
+('red', '</s>') 1
+('green', '</s>') 1
+('blue', '</s>') 1
+('to', 'red', '</s>') 1
+('to', 'green', '</s>') 1
+('to', 'blue', '</s>') 1
+
+```
+
+### Opengrm
+
 If you have the [Opengrm](http://www.opengrm.org/twiki/bin/view/GRM/NGramLibrary) command-line tools in your `PATH`, you can use `rhasspynlu` to generate language models in the [ARPA format](https://cmusphinx.github.io/wiki/arpaformat/). 
-These models can be used by speech recognition systems, such as [Pocketsphinx](https://github.com/cmusphinx/pocketsphinx), [Kaldi](https://kaldi-asr.org), and [Julius](https://github.com/julius-speech/julius).
 
 The `graph_to_fst` and `fst_to_arpa` functions are used to convert between formats. Calling `fst_to_arpa` requires the following binaries to be present in your `PATH`:
 
