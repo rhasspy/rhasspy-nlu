@@ -8,8 +8,18 @@ import attr
 import networkx as nx
 
 from .ini_jsgf import get_intent_counts, split_rules
-from .jsgf import (Expression, Rule, RuleReference, Sentence, Sequence,
-                   SequenceType, SlotReference, Substitutable, Taggable, Word)
+from .jsgf import (
+    Expression,
+    Rule,
+    RuleReference,
+    Sentence,
+    Sequence,
+    SequenceType,
+    SlotReference,
+    Substitutable,
+    Taggable,
+    Word,
+)
 
 # -----------------------------------------------------------------------------
 

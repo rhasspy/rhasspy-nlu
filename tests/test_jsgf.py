@@ -1,9 +1,17 @@
 """Test cases for JSGF parser."""
 import unittest
 
-from rhasspynlu.jsgf import (RuleReference, Sentence, Sequence, SequenceType,
-                             SlotReference, Tag, Word, get_expression_count,
-                             walk_expression)
+from rhasspynlu.jsgf import (
+    RuleReference,
+    Sentence,
+    Sequence,
+    SequenceType,
+    SlotReference,
+    Tag,
+    Word,
+    get_expression_count,
+    walk_expression,
+)
 
 
 class BasicJsgfTestCase(unittest.TestCase):

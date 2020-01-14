@@ -2,8 +2,13 @@
 import unittest
 
 from rhasspynlu.ini_jsgf import parse_ini
-from rhasspynlu.jsgf_graph import (GraphFst, GraphFsts, graph_to_fst,
-                                   graph_to_fsts, intents_to_graph)
+from rhasspynlu.jsgf_graph import (
+    GraphFst,
+    GraphFsts,
+    graph_to_fst,
+    graph_to_fsts,
+    intents_to_graph,
+)
 
 
 class FstTestCase(unittest.TestCase):

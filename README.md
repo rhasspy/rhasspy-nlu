@@ -1,6 +1,6 @@
 # Rhasspy Natural Language Understanding
 
-![Travis CI build status](https://travis-ci.com/synesthesiam/rhasspy-nlu.svg?branch=master)
+[![Continous Integration](https://github.com/rhasspy/rhasspy-nlu/workflows/Test%20Python%20package/badge.svg)](https://github.com/rhasspy/rhasspy-nlu/actions)
 
 Library for parsing Rhasspy sentence templates, doing intent recognition, and generating ARPA language models.
 
@@ -56,7 +56,7 @@ Sentence templates are based on the [JSGF](https://www.w3.org/TR/jsgf/) standard
     * `rule_name = rule body` can be referenced as `<rule_name>`
 * Slots
     * `$slot` will be replaced by a list of sentences in the `replacements` argument of `intents_to_graph`
-    
+
 #### Rules
 
 Named rules can be added to your template file using the syntax:
@@ -407,7 +407,7 @@ graph_fst.write("my_fst.txt", "input_symbols.txt", "output_symbols.txt")
 # Compile and convert to ARPA language model
 rhasspynlu.fst_to_arpa(
     "my_fst.txt",
-    "input_symbols.txt", 
+    "input_symbols.txt",
     "output_symbols.txt",
     "my_arpa.lm"
 )

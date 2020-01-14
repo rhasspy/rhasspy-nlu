@@ -2,8 +2,7 @@
 import unittest
 
 from rhasspynlu.ini_jsgf import get_intent_counts, parse_ini, split_rules
-from rhasspynlu.jsgf import (Sentence, Sequence, SequenceType, Word,
-                             walk_expression)
+from rhasspynlu.jsgf import Sentence, Sequence, SequenceType, Word, walk_expression
 
 
 class IniJsgfTestCase(unittest.TestCase):

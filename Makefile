@@ -1,26 +1,25 @@
-PYTHON_FILES = rhasspynlu/*.py tests/*.py *.py
+SOURCE = rhasspynlu
+PYTHON_FILES = $(SOURCE)/*.py tests/*.py *.py
 
-.PHONY: black check test dist venv
+.PHONY: reformat check test dist venv
 
-black:
+reformat:
 	black .
+	isort $(PYTHON_FILES)
 
 check:
 	flake8 $(PYTHON_FILES)
 	pylint $(PYTHON_FILES)
 	mypy $(PYTHON_FILES)
 	black --check .
+	isort --check-only $(PYTHON_FILES)
 	yamllint .
-	isort $(PYTHON_FILES)
 	pip list --outdated
 
 test:
-	python3 -m unittest \
-        tests.test_jsgf \
-        tests.test_ini_jsgf \
-        tests.test_jsgf_graph \
-        tests.test_fsticuffs \
-        tests.test_ngram
+	coverage run --source=$(SOURCE) -m unittest
+	coverage report -m
+	coverage xml
 
 venv:
 	rm -rf .venv/

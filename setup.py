@@ -1,4 +1,4 @@
-"""Set up for rhasspynlu"""
+"""Setup script for rhasspynlu"""
 import os
 
 import setuptools
