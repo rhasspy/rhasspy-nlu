@@ -1,6 +1,9 @@
 # Rhasspy Natural Language Understanding
 
-[![Continous Integration](https://github.com/rhasspy/rhasspy-nlu/workflows/Test%20Python%20package/badge.svg)](https://github.com/rhasspy/rhasspy-nlu/actions)
+[![Continous Integration](https://github.com/rhasspy/rhasspy-nlu/workflows/Tests/badge.svg)](https://github.com/rhasspy/rhasspy-nlu/actions)
+[![PyPI package version](https://img.shields.io/pypi/v/rhasspy-nlu.svg)](https://pypi.org/project/rhasspy-nlu)
+[![Python versions](https://img.shields.io/pypi/pyversions/rhasspy-nlu.svg)](https://www.python.org)
+[![GitHub license](https://img.shields.io/github/license/rhasspy/rhasspy-nlu.svg)](https://github.com/rhasspy/rhasspy-nlu/blob/master/LICENSE)
 
 Library for parsing Rhasspy sentence templates, doing intent recognition, and generating ARPA language models.
 
