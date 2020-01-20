@@ -244,8 +244,8 @@ def intents_to_graph(
 
     if add_intent_weights:
         # Count number of posssible sentences per intent
-        intent_counts = get_intent_counts(  # type: ignore
-            sentences,
+        intent_counts = get_intent_counts(
+            sentences,  # type: ignore
             replacements,
             exclude_slots=exclude_slots_from_counts,
             count_dict=count_dict,
@@ -547,7 +547,7 @@ def lcm(*nums: int) -> int:
 
 
 def get_start_end_nodes(
-    graph: nx.DiGraph
+    graph: nx.DiGraph,
 ) -> typing.Tuple[typing.Optional[int], typing.Optional[int]]:
     """Return start/end nodes in graph"""
     n_data = graph.nodes(data=True)
