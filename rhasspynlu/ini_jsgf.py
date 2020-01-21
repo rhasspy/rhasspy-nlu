@@ -14,12 +14,12 @@ from .jsgf import Expression, Rule, Sentence, get_expression_count
 _LOGGER = logging.getLogger(__name__)
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class Grammar:
     """Named JSGF grammar with rules."""
 
-    grammar_name: str = attr.ib(default="")
-    rules: typing.List[Rule] = attr.ib(factory=list)
+    grammar_name: str = ""
+    rules: typing.List[Rule] = attr.Factory(list)
 
     GRAMMAR_DECLARATION = re.compile(r"^grammar ([^;]+);$")
 
