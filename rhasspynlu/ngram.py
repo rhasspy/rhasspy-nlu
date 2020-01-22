@@ -6,11 +6,15 @@ from collections import Counter, defaultdict, deque
 
 import networkx as nx
 
-from .jsgf_graph import get_start_end_nodes
+from .jsgf_graph import get_start_end_nodes, lcm
 
 
 def get_intent_ngram_counts(
-    graph: nx.DiGraph, pad_start="<s>", pad_end="</s>", order=3
+    graph: nx.DiGraph,
+    pad_start="<s>",
+    pad_end="</s>",
+    order=3,
+    balance_counts: bool = True,
 ) -> typing.Dict[str, Counter]:
     """Gets ngram counts per intent for a JSGF graph"""
     intent_counts: typing.Dict[str, Counter] = defaultdict(Counter)
@@ -21,12 +25,16 @@ def get_intent_ngram_counts(
         graph, start_node, end_node, pad_start=pad_start, pad_end=pad_end
     )
 
+    sentence_counts: typing.Dict[str, int] = {}
+
     intent_nodes = set(graph.successors(start_node))
     for intent_node in intent_nodes:
         # __label__INTENT
-        olabel = graph.edges[(start_node, intent_node)]["olabel"]
+        edge_data = graph.edges[(start_node, intent_node)]
+        olabel = edge_data["olabel"]
         assert olabel.startswith("__label__"), "Not an intent graph"
         intent_name = olabel[9:]
+        sentence_counts[intent_name] = edge_data.get("sentence_count", 1)
 
         # First word(s) of intent
         valid_nodes = set([start_node])
@@ -50,6 +58,17 @@ def get_intent_ngram_counts(
             pad_end=pad_end,
             order=order,
         )
+
+    # Balance all n-gram counts by intent
+    if balance_counts:
+        num_sentences_lcm = lcm(*sentence_counts.values())
+
+        # Multiple all counts by LCM/count for each intent
+        for intent_name, sentence_count in sentence_counts.items():
+            multiplier = num_sentences_lcm // sentence_count
+            ngram_counts = intent_counts[intent_name]
+            for ngram in ngram_counts:
+                ngram_counts[ngram] *= multiplier
 
     return intent_counts
 
