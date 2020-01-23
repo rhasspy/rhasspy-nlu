@@ -60,6 +60,10 @@ class Recognition:
     tokens: typing.List[typing.Any] = attr.ib(factory=list)
     raw_tokens: typing.List[str] = attr.ib(factory=list)
 
+    # Transcription details
+    wav_seconds: float = attr.ib(default=0.0)
+    transcribe_seconds: float = attr.ib(default=0.0)
+
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
         return attr.asdict(self)
