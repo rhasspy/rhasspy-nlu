@@ -6,46 +6,44 @@ from enum import Enum
 import attr
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class Substitutable:
     """Indicates an expression may be replaced with some text."""
 
     # Replacement text
-    substitution: typing.Optional[str] = attr.ib(default=None)
+    substitution: typing.Optional[str] = None
 
     # Names of converters to apply after substitution
-    converters: typing.List[str] = attr.ib(factory=list)
+    converters: typing.List[str] = attr.Factory(list)
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class Tag(Substitutable):
     """{tag} attached to an expression."""
 
     # Name of tag (entity)
-    tag_text: str = attr.ib(default="")
+    tag_text: str = ""
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class Taggable:
     """Indicates an expression may be tagged."""
 
     # Tag to be applied
-    tag: typing.Optional[Tag] = attr.ib(default=None)
+    tag: typing.Optional[Tag] = None
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class Expression:
     """Base class for most JSGF types."""
 
     # Text representation expression
-    text: str = attr.ib(default="")
+    text: str = ""
 
 
 @attr.s(hash=False)
 class Word(Expression, Taggable, Substitutable):
     """Single word/token."""
-
-    pass
 
 
 class SequenceType(str, Enum):
@@ -58,34 +56,34 @@ class SequenceType(str, Enum):
     ALTERNATIVE = "alternative"
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class Sequence(Expression, Taggable, Substitutable):
     """Ordered sequence of expressions. Supports groups, optionals, and alternatives."""
 
     # Items in the sequence
-    items: typing.List[Expression] = attr.ib(factory=list)
+    items: typing.List[Expression] = attr.Factory(list)
 
     # Group or alternative
-    type: SequenceType = attr.ib(default=SequenceType.GROUP)
+    type: SequenceType = SequenceType.GROUP)
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class RuleReference(Expression, Taggable):
     """Reference to a rule by <name> or <grammar.name>."""
 
     # Name of referenced rule
-    rule_name: str = attr.ib(default="")
+    rule_name: str = ""
 
     # Grammar name of referenced rule
-    grammar_name: typing.Optional[str] = attr.ib(default=None)
+    grammar_name: typing.Optional[str] = None
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class SlotReference(Expression, Taggable, Substitutable):
     """Reference to a slot by $name."""
 
     # Name of referenced slot
-    slot_name: str = attr.ib(default="")
+    slot_name: str = ""
 
 
 @attr.s(hash=False)
@@ -107,16 +105,16 @@ class Sentence(Sequence):
         )
 
 
-@attr.s(hash=False)
+@attr.s(hash=False, auto_attribs=True)
 class Rule:
     """Named rule with body."""
 
     RULE_DEFINITION = re.compile(r"^(public)?\s*<([^>]+)>\s*=\s*([^;]+)(;)?$")
 
-    rule_name: str = attr.ib()
-    rule_body: Sentence = attr.ib()
-    public: bool = attr.ib(default=False)
-    text: str = attr.ib(default="")
+    rule_name: str
+    rule_body: Sentence
+    public: bool = False
+    text: str = ""
 
     @classmethod
     def parse(cls, text: str) -> "Rule":

@@ -7,38 +7,38 @@ from enum import Enum
 import attr
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class Entity:
     """Named entity from intent."""
 
-    entity: str = attr.ib()
-    value: str = attr.ib()
-    raw_value: str = attr.ib(default="")
-    start: int = attr.ib(default=0)
-    raw_start: int = attr.ib(default=0)
-    end: int = attr.ib(default=0)
-    raw_end: int = attr.ib(default=0)
-    tokens: typing.List[typing.Any] = attr.ib(factory=list)
-    raw_tokens: typing.List[str] = attr.ib(factory=list)
+    entity: str
+    value: str
+    raw_value: str = ""
+    start: int = 0
+    raw_start: int = 0
+    end: int = 0
+    raw_end: int = 0
+    tokens: typing.List[typing.Any] = attr.Factory(list)
+    raw_tokens: typing.List[str] = attr.Factory(list)
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class Intent:
     """Named intention with entities and slots."""
 
-    name: str = attr.ib()
-    confidence: float = attr.ib(default=0)
+    name: str
+    confidence: float = 0)
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class TagInfo:
     """Information used to process FST tags."""
 
-    tag: str = attr.ib()
-    start_index: int = attr.ib(default=0)
-    raw_start_index: int = attr.ib(default=0)
-    symbols: typing.List[str] = attr.ib(factory=list)
-    raw_symbols: typing.List[str] = attr.ib(factory=list)
+    tag: str
+    start_index: int = 0
+    raw_start_index: int = 0
+    symbols: typing.List[str] = attr.Factory(list)
+    raw_symbols: typing.List[str] = attr.Factory(list)
 
 
 class RecognitionResult(str, Enum):
@@ -48,17 +48,17 @@ class RecognitionResult(str, Enum):
     FAILURE = "failure"
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class Recognition:
     """Output of intent recognition."""
 
-    intent: typing.Optional[Intent] = attr.ib(default=None)
-    entities: typing.List[Entity] = attr.ib(factory=list)
-    text: str = attr.ib(default="")
-    raw_text: str = attr.ib(default="")
-    recognize_seconds: float = attr.ib(default=0)
-    tokens: typing.List[typing.Any] = attr.ib(factory=list)
-    raw_tokens: typing.List[str] = attr.ib(factory=list)
+    intent: typing.Optional[Intent] = None
+    entities: typing.List[Entity] = attr.Factory(list)
+    text: str = ""
+    raw_text: str = ""
+    recognize_seconds: float = 0
+    tokens: typing.List[typing.Any] = attr.Factory(list)
+    raw_tokens: typing.List[str] = attr.Factory(list)
 
     # Transcription details
     wav_seconds: float = attr.ib(default=0.0)

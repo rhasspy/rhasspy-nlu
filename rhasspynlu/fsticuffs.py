@@ -194,31 +194,31 @@ def paths_strict(
 # -----------------------------------------------------------------------------
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class FuzzyResult:
     """Single path for fuzzy recognition."""
 
-    intent_name: str = attr.ib()
-    node_path: typing.Iterable[int] = attr.ib()
-    cost: float = attr.ib()
+    intent_name: str
+    node_path: typing.Iterable[int]
+    cost: float
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class FuzzyCostInput:
     """Input to fuzzy cost function."""
 
-    ilabel: str = attr.ib()
-    tokens: typing.List[str] = attr.ib()
-    stop_words: typing.Set[str] = attr.ib()
-    word_transform: typing.Optional[typing.Callable[[str], str]] = attr.ib(default=None)
+    ilabel: str
+    tokens: typing.List[str]
+    stop_words: typing.Set[str]
+    word_transform: typing.Optional[typing.Callable[[str], str]] = None
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class FuzzyCostOutput:
     """Output from fuzzy cost function."""
 
-    cost: float = attr.ib()
-    continue_search: bool = attr.ib(default=True)
+    cost: float
+    continue_search: bool = True
 
 
 def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
@@ -421,21 +421,21 @@ def best_fuzzy_cost(
 # -----------------------------------------------------------------------------
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class ConverterInfo:
     """Local info for converter stack in path_to_recognition"""
 
     # Name + args
-    key: str = attr.ib()
+    key: str
 
     # Name of converter
-    name: str = attr.ib()
+    name: str
 
     # Optional arguments passed using name,arg1,arg2,...
-    args: typing.Optional[typing.List[str]] = attr.ib(default=None)
+    args: typing.Optional[typing.List[str]] = None
 
     # List of raw/substituted tokens
-    tokens: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
+    tokens: typing.List[typing.Tuple[str, str]] = attr.Factory(list)
 
 
 def path_to_recognition(
