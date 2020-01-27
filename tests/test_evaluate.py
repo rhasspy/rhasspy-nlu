@@ -1,8 +1,8 @@
 """Test cases for evaluation."""
 import unittest
 
-from rhasspynlu.intent import Recognition, Intent, Entity
 from rhasspynlu.evaluate import evaluate_intents, get_word_error
+from rhasspynlu.intent import Entity, Intent, Recognition
 
 
 class WordErrorEvaluationTests(unittest.TestCase):

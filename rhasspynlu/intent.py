@@ -27,7 +27,7 @@ class Intent:
     """Named intention with entities and slots."""
 
     name: str
-    confidence: float = 0)
+    confidence: float = 0
 
 
 @attr.s(auto_attribs=True)

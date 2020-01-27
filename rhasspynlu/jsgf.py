@@ -64,7 +64,7 @@ class Sequence(Expression, Taggable, Substitutable):
     items: typing.List[Expression] = attr.Factory(list)
 
     # Group or alternative
-    type: SequenceType = SequenceType.GROUP)
+    type: SequenceType = SequenceType.GROUP
 
 
 @attr.s(hash=False, auto_attribs=True)

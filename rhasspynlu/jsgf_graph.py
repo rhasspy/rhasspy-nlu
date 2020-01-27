@@ -231,7 +231,7 @@ def expression_to_graph(
 
 
 def intents_to_graph(
-    intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
+    intents: typing.Dict[str, typing.Sequence[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
     add_intent_weights: bool = True,
     exclude_slots_from_counts: bool = True,
@@ -245,7 +245,7 @@ def intents_to_graph(
     if add_intent_weights:
         # Count number of posssible sentences per intent
         intent_counts = get_intent_counts(
-            sentences,  # type: ignore
+            sentences,
             replacements,
             exclude_slots=exclude_slots_from_counts,
             count_dict=count_dict,

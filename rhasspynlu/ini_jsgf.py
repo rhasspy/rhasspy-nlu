@@ -124,7 +124,7 @@ def parse_ini(
 
 
 def split_rules(
-    intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
+    intents: typing.Mapping[str, typing.Sequence[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
 ) -> typing.Tuple[
     typing.Dict[str, typing.List[Sentence]], typing.Dict[str, typing.Iterable[Sentence]]
@@ -161,7 +161,7 @@ def split_rules(
 
 
 def get_intent_counts(
-    intents: typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]],
+    intents: typing.Mapping[str, typing.Sequence[typing.Union[Sentence, Rule]]],
     replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
     exclude_slots: bool = True,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,

@@ -4,15 +4,17 @@ import typing
 
 import attr
 
-from .intent import Recognition, Entity
+from .intent import Recognition
 
 _LOGGER = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class WordError:
+    """Detailed differences between reference and hypothesis strings."""
+
     reference: typing.List[str] = attr.ib(factory=list)
     hypothesis: typing.List[str] = attr.ib(factory=list)
     differences: typing.List[str] = attr.ib(factory=list)
@@ -25,17 +27,17 @@ class WordError:
     error_rate: float = attr.ib(default=0.0)
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class TestReportItem(Recognition):
     """Extended actual recognition result from TestReport."""
 
     expected_intent_name: str = attr.ib(default="")
-    wrong_entities: typing.List[Entity] = attr.ib(factory=list)
-    missing_entities: typing.List[Entity] = attr.ib(factory=list)
+    wrong_entities: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
+    missing_entities: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
     word_error: typing.Optional[WordError] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class TestReport:
     """Result of evaluate_intents."""
 
@@ -100,6 +102,7 @@ def evaluate_intents(
 
     # Compute statistics
     for wav_name, actual_intent in actual.items():
+        # pylint: disable=E1137
         report.actual[wav_name] = TestReportItem(**actual_intent.__dict__)
 
         # Get corresponding expected intent
@@ -137,8 +140,9 @@ def evaluate_intents(
 
             # Verify actual entities.
             # Only check entities if intent was correct.
-            wrong_entities = []
-            missing_entities = []
+            wrong_entities: typing.List[typing.Tuple[str, str]] = []
+            missing_entities: typing.List[typing.Tuple[str, str]] = []
+
             if intents_match:
                 report.correct_intent_names += 1
                 num_actual_entities = 0
@@ -156,13 +160,18 @@ def evaluate_intents(
                 missing_entities = expected_entities
 
                 # Check if entities matched *exactly*
-                if (len(expected_entities) == 0) and (
+                if (not expected_entities) and (
                     num_actual_entities == num_expected_entities
                 ):
                     report.correct_intent_and_entities += 1
 
+            # pylint: disable=E1136
             report.actual[wav_name].expected_intent_name = expected_intent.intent.name
+
+            # pylint: disable=E1136
             report.actual[wav_name].wrong_entities = wrong_entities
+
+            # pylint: disable=E1136
             report.actual[wav_name].missing_entities = missing_entities
 
         # Compute word error
@@ -170,6 +179,8 @@ def evaluate_intents(
             word_error = get_word_error(expected_text.split(), actual_text.split())
             report.num_words += word_error.words
             report.correct_words += word_error.matches
+
+            # pylint: disable=E1136
             report.actual[wav_name].word_error = word_error
 
         report.num_wavs += 1
@@ -181,7 +192,7 @@ def evaluate_intents(
 
     # Compute transcription speedup
     report.average_transcription_speedup = 0
-    if len(speedups) > 0:
+    if speedups:
         report.average_transcription_speedup = sum(speedups) / len(speedups)
 
     # Summarize results
