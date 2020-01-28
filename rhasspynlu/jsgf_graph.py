@@ -7,10 +7,10 @@ from pathlib import Path
 import attr
 import networkx as nx
 
+from .const import IntentsType, ReplacementsType, SentencesType
 from .ini_jsgf import get_intent_counts, split_rules
 from .jsgf import (
     Expression,
-    Rule,
     RuleReference,
     Sentence,
     Sequence,
@@ -28,7 +28,7 @@ def expression_to_graph(
     expression: Expression,
     graph: nx.DiGraph,
     source_state: int,
-    replacements: typing.Dict[str, typing.Iterable[Sentence]] = None,
+    replacements: typing.Optional[ReplacementsType] = None,
     empty_substitution: bool = False,
     grammar_name: typing.Optional[str] = None,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
@@ -231,20 +231,35 @@ def expression_to_graph(
 
 
 def intents_to_graph(
-    intents: typing.Dict[str, typing.Sequence[typing.Union[Sentence, Rule]]],
-    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+    intents: IntentsType,
+    replacements: typing.Optional[ReplacementsType] = None,
     add_intent_weights: bool = True,
     exclude_slots_from_counts: bool = True,
 ) -> nx.DiGraph:
     """Convert sentences/rules grouped by intent into a directed graph."""
     sentences, replacements = split_rules(intents, replacements)
+    return sentences_to_graph(
+        sentences,
+        replacements=replacements,
+        add_intent_weights=add_intent_weights,
+        exclude_slots_from_counts=exclude_slots_from_counts,
+    )
+
+
+def sentences_to_graph(
+    sentences: SentencesType,
+    replacements: typing.Optional[ReplacementsType] = None,
+    add_intent_weights: bool = True,
+    exclude_slots_from_counts: bool = True,
+) -> nx.DiGraph:
+    """Convert sentences grouped by intent into a directed graph."""
     num_intents = len(sentences)
     intent_weights: typing.Dict[str, float] = {}
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None
 
     if add_intent_weights:
         # Count number of posssible sentences per intent
-        intent_counts = get_intent_counts(
+        intent_counts = get_intent_counts(  # type: ignore
             sentences,
             replacements,
             exclude_slots=exclude_slots_from_counts,
@@ -298,7 +313,7 @@ def intents_to_graph(
 
         for sentence in intent_sentences:
             # Insert all sentences for this intent
-            next_state = expression_to_graph(
+            next_state = expression_to_graph(  # type: ignore
                 sentence,
                 graph,
                 intent_state,

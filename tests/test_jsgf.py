@@ -1,6 +1,7 @@
 """Test cases for JSGF parser."""
 import unittest
 
+from rhasspynlu.ini_jsgf import get_expression_count
 from rhasspynlu.jsgf import (
     RuleReference,
     Sentence,
@@ -9,7 +10,6 @@ from rhasspynlu.jsgf import (
     SlotReference,
     Tag,
     Word,
-    get_expression_count,
     walk_expression,
 )
 

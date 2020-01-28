@@ -67,3 +67,8 @@ class Recognition:
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
         return attr.asdict(self)
+
+    @classmethod
+    def empty(cls) -> "Recognition":
+        """Return an empty recognition."""
+        return Recognition(intent=Intent(name=""))

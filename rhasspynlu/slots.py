@@ -6,6 +6,7 @@ from pathlib import Path
 
 import attr
 
+from .const import ReplacementsType, SentencesType
 from .jsgf import Expression, Rule, Sentence, Sequence, SlotReference, walk_expression
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,20 +36,20 @@ class SlotProgramInfo:
 
 
 def get_slot_replacements(
-    intents,
+    sentences: SentencesType,
     slots_dirs: typing.List[Path],
     slot_programs_dirs: typing.List[Path],
-    word_transform: typing.Optional[
-        typing.Callable[[Expression], typing.Union[bool, typing.Optional[Expression]]]
+    slot_visitor: typing.Optional[
+        typing.Callable[[Expression], typing.Union[bool, Expression]]
     ] = None,
-) -> typing.Dict[str, typing.Iterable[Sentence]]:
+) -> ReplacementsType:
     """Create replacement dictionary for referenced slots."""
-    replacements: typing.Dict[str, typing.Iterable[Sentence]] = {}
+    replacements: ReplacementsType = {}
 
     # Gather used slot names
     slot_names: typing.Set[str] = set()
-    for intent_name in intents:
-        for item in intents[intent_name]:
+    for intent_name in sentences:
+        for item in sentences[intent_name]:
             for slot_name in get_slot_names(item):
                 slot_names.add(slot_name)
 
@@ -63,15 +64,15 @@ def get_slot_replacements(
 
         if isinstance(slot_info, StaticSlotInfo):
             # Parse each non-empty line as a JSGF sentence
-            slot_values = []
+            slot_values: typing.List[Expression] = []
             _LOGGER.debug("Loading slot %s from %s", slot_key, str(slot_info.path))
             with open(slot_info.path, "r") as slot_file:
                 for line in slot_file:
                     line = line.strip()
                     if line:
                         sentence = Sentence.parse(line)
-                        if word_transform:
-                            walk_expression(sentence, word_transform)
+                        if slot_visitor:
+                            walk_expression(sentence, slot_visitor)
 
                         slot_values.append(sentence)
         elif isinstance(slot_info, SlotProgramInfo):
@@ -87,8 +88,8 @@ def get_slot_replacements(
                 line = line.strip()
                 if line:
                     sentence = Sentence.parse(line)
-                    if word_transform:
-                        walk_expression(sentence, word_transform)
+                    if slot_visitor:
+                        walk_expression(sentence, slot_visitor)
 
                     slot_values.append(sentence)
         else:

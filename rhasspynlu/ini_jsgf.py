@@ -9,7 +9,17 @@ from pathlib import Path
 
 import attr
 
-from .jsgf import Expression, Rule, Sentence, get_expression_count
+from .const import IntentsType, ReplacementsType, SentencesType
+from .jsgf import (
+    Expression,
+    Rule,
+    RuleReference,
+    Sentence,
+    Sequence,
+    SequenceType,
+    SlotReference,
+    Word,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +64,7 @@ def parse_ini(
     source: typing.Union[str, Path, typing.TextIO],
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
     sentence_transform: typing.Callable[[str], str] = None,
-) -> typing.Dict[str, typing.List[typing.Union[Sentence, Rule]]]:
+) -> IntentsType:
     """Parse multiple JSGF grammars from an ini file."""
     intent_filter = intent_filter or (lambda x: True)
     if isinstance(source, str):
@@ -63,9 +73,7 @@ def parse_ini(
         source = open(source, "r")
 
     # Process configuration sections
-    sentences: typing.Dict[
-        str, typing.List[typing.Union[Sentence, Rule]]
-    ] = defaultdict(list)
+    sentences: IntentsType = defaultdict(list)
 
     try:
         # Create ini parser
@@ -124,13 +132,10 @@ def parse_ini(
 
 
 def split_rules(
-    intents: typing.Mapping[str, typing.Sequence[typing.Union[Sentence, Rule]]],
-    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
-) -> typing.Tuple[
-    typing.Dict[str, typing.List[Sentence]], typing.Dict[str, typing.Iterable[Sentence]]
-]:
+    intents: IntentsType, replacements: typing.Optional[ReplacementsType] = None
+) -> typing.Tuple[SentencesType, ReplacementsType]:
     """Seperate out rules and sentences from all intents."""
-    sentences: typing.Dict[str, typing.List[Sentence]] = {}
+    sentences: SentencesType = {}
     replacements = replacements or {}
 
     for intent_name, intent_exprs in intents.items():
@@ -161,8 +166,8 @@ def split_rules(
 
 
 def get_intent_counts(
-    intents: typing.Mapping[str, typing.Sequence[typing.Union[Sentence, Rule]]],
-    replacements: typing.Optional[typing.Dict[str, typing.Iterable[Sentence]]] = None,
+    intents: IntentsType,
+    replacements: typing.Optional[ReplacementsType] = None,
     exclude_slots: bool = True,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
 ):
@@ -175,7 +180,7 @@ def get_intent_counts(
         intent_counts[intent_name] = max(
             1,
             sum(
-                get_expression_count(
+                get_expression_count(  # type: ignore
                     s, replacements, exclude_slots=exclude_slots, count_dict=count_dict
                 )
                 for s in intent_sentences
@@ -183,3 +188,92 @@ def get_intent_counts(
         )
 
     return intent_counts
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_expression_count(
+    expression: Expression,
+    replacements: typing.Optional[ReplacementsType] = None,
+    exclude_slots: bool = True,
+    count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
+) -> int:
+    """Get the number of possible sentences in an expression."""
+    if isinstance(expression, Sequence):
+        if expression.type == SequenceType.GROUP:
+            # Counts multiply down the sequence
+            count = 1
+            for sub_item in expression.items:
+                count = count * get_expression_count(
+                    sub_item,
+                    replacements,
+                    exclude_slots=exclude_slots,
+                    count_dict=count_dict,
+                )
+
+            if count_dict is not None:
+                count_dict[expression] = count
+
+            return count
+
+        if expression.type == SequenceType.ALTERNATIVE:
+            # Counts sum across the alternatives
+            count = sum(
+                get_expression_count(
+                    sub_item,
+                    replacements,
+                    exclude_slots=exclude_slots,
+                    count_dict=count_dict,
+                )
+                for sub_item in expression.items
+            )
+
+            if count_dict is not None:
+                count_dict[expression] = count
+
+            return count
+    elif isinstance(expression, RuleReference):
+        # Get substituted sentences for <rule>
+        key = f"<{expression.rule_name}>"
+        assert replacements, key
+        count = sum(
+            get_expression_count(
+                value, replacements, exclude_slots=exclude_slots, count_dict=count_dict
+            )
+            for value in replacements[key]
+        )
+
+        if count_dict is not None:
+            count_dict[expression] = count
+
+        return count
+    elif (not exclude_slots) and isinstance(expression, SlotReference):
+        # Get substituted sentences for $slot
+        key = f"${expression.slot_name}"
+        assert replacements, key
+        count = sum(
+            get_expression_count(
+                value, replacements, exclude_slots=exclude_slots, count_dict=count_dict
+            )
+            for value in replacements[key]
+        )
+
+        if count_dict is not None:
+            count_dict[expression] = count
+
+        return count
+    elif isinstance(expression, Word):
+        # Single word
+        count = 1
+        if count_dict is not None:
+            count_dict[expression] = count
+
+        return count
+
+    # Unknown expression type
+    count = 0
+    if count_dict is not None:
+        count_dict[expression] = count
+
+    return count

@@ -5,7 +5,13 @@ from .evaluate import evaluate_intents
 from .fsticuffs import recognize
 from .ini_jsgf import parse_ini
 from .jsgf import Rule, Sentence
-from .jsgf_graph import graph_to_fst, graph_to_json, intents_to_graph, json_to_graph
+from .jsgf_graph import (
+    graph_to_fst,
+    graph_to_json,
+    intents_to_graph,
+    json_to_graph,
+    sentences_to_graph,
+)
 from .ngram import get_intent_ngram_counts
 from .numbers import number_range_transform, number_transform
 from .slots import get_slot_replacements
