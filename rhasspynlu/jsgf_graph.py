@@ -259,7 +259,7 @@ def sentences_to_graph(
 
     if add_intent_weights:
         # Count number of posssible sentences per intent
-        intent_counts = get_intent_counts(  # type: ignore
+        intent_counts = get_intent_counts(
             sentences,
             replacements,
             exclude_slots=exclude_slots_from_counts,

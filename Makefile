@@ -1,5 +1,6 @@
 SOURCE = rhasspynlu
 PYTHON_FILES = $(SOURCE)/*.py tests/*.py *.py
+PIP_INSTALL ?= install
 
 .PHONY: reformat check test dist venv
 
@@ -24,10 +25,10 @@ test:
 venv:
 	rm -rf .venv/
 	python3 -m venv .venv
-	.venv/bin/pip3 install --upgrade pip
-	.venv/bin/pip3 install wheel setuptools
-	.venv/bin/pip3 install -r requirements.txt
-	.venv/bin/pip3 install -r requirements_dev.txt
+	.venv/bin/pip3 $(PIP_INSTALL) --upgrade pip
+	.venv/bin/pip3 $(PIP_INSTALL) wheel setuptools
+	.venv/bin/pip3 $(PIP_INSTALL) -r requirements.txt
+	.venv/bin/pip3 $(PIP_INSTALL) -r requirements_dev.txt
 
 dist:
 	python3 setup.py sdist
