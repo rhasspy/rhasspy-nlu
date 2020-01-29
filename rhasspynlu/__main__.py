@@ -42,43 +42,49 @@ def main():
     _LOGGER.debug(args)
 
     # Read sentences ini from files or stdin
-    if args.sentences_file:
-        with io.StringIO() as ini_file:
-            for sentences_path in args.sentences_file:
-                _LOGGER.debug("Reading %s", sentences_path)
+    try:
+        if args.sentences_file:
+            with io.StringIO() as ini_file:
+                for sentences_path in args.sentences_file:
+                    _LOGGER.debug("Reading %s", sentences_path)
 
-                with open(sentences_path, "r") as sentences_file:
-                    ini_file.write(sentences_file.read())
-                    print("", file=ini_file)
+                    with open(sentences_path, "r") as sentences_file:
+                        ini_file.write(sentences_file.read())
+                        print("", file=ini_file)
 
-            ini_text = ini_file.getvalue()
-    else:
-        if os.isatty(sys.stdin.fileno()):
-            print("Reading from stdin...", file=sys.stderr)
+                ini_text = ini_file.getvalue()
+        else:
+            if os.isatty(sys.stdin.fileno()):
+                print("Reading sentences ini from stdin...", file=sys.stderr)
 
-        ini_text = sys.stdin.read()
+            ini_text = sys.stdin.read()
 
-    _LOGGER.debug("Parsing sentences")
-    intents = parse_ini(ini_text)
+        _LOGGER.debug("Parsing sentences")
+        intents = parse_ini(ini_text)
 
-    _LOGGER.debug("Converting to graph")
-    graph = intents_to_graph(intents)
+        _LOGGER.debug("Converting to graph")
+        graph = intents_to_graph(intents)
 
-    if args.fst:
-        _LOGGER.debug("Converting to FST")
-        graph_fst = graph_to_fst(graph)
+        if args.fst:
+            _LOGGER.debug("Converting to FST")
+            graph_fst = graph_to_fst(graph)
 
-        _LOGGER.debug(
-            "Writing %s, %s, %s", args.fst_text, args.fst_isymbols, args.fst_osymbols
-        )
+            _LOGGER.debug(
+                "Writing %s, %s, %s",
+                args.fst_text,
+                args.fst_isymbols,
+                args.fst_osymbols,
+            )
 
-        graph_fst.write_fst(args.fst_text, args.fst_isymbols, args.fst_osymbols)
-    else:
-        # Output JSON
-        _LOGGER.debug("Writing to stdout")
-        graph_dict = graph_to_json(graph)
+            graph_fst.write_fst(args.fst_text, args.fst_isymbols, args.fst_osymbols)
+        else:
+            # Output JSON
+            _LOGGER.debug("Writing to stdout")
+            graph_dict = graph_to_json(graph)
 
-        json.dump(graph_dict, sys.stdout)
+            json.dump(graph_dict, sys.stdout)
+    except KeyboardInterrupt:
+        pass
 
 
 # -----------------------------------------------------------------------------
