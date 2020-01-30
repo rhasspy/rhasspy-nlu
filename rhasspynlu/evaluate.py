@@ -11,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class WordError:
     reference: typing.List[str] = attr.Factory(list)
     hypothesis: typing.List[str] = attr.Factory(list)
@@ -25,7 +25,7 @@ class WordError:
     error_rate: float = 0.0
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class TestReportItem(Recognition):
     """Extended actual recognition result from TestReport."""
 
@@ -35,7 +35,7 @@ class TestReportItem(Recognition):
     word_error: typing.Optional[WordError] = None
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class TestReport:
     """Result of evaluate_intents."""
 
@@ -100,7 +100,7 @@ def evaluate_intents(
 
     # Compute statistics
     for wav_name, actual_intent in actual.items():
-        report.actual[wav_name] = TestReportItem(**actual_intent.__dict__)
+        report.actual[wav_name] = TestReportItem(**actual_intent.asdict())
 
         # Get corresponding expected intent
         expected_intent = expected[wav_name]

@@ -7,7 +7,7 @@ from enum import Enum
 import attr
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class Entity:
     """Named entity from intent."""
 
@@ -22,7 +22,7 @@ class Entity:
     raw_tokens: typing.List[str] = attr.Factory(list)
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class Intent:
     """Named intention with entities and slots."""
 
@@ -30,7 +30,7 @@ class Intent:
     confidence: float = 0
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class TagInfo:
     """Information used to process FST tags."""
 
@@ -48,7 +48,7 @@ class RecognitionResult(str, Enum):
     FAILURE = "failure"
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class Recognition:
     """Output of intent recognition."""
 

@@ -334,7 +334,7 @@ def json_to_graph(json_dict: typing.Dict[str, typing.Any]) -> nx.DiGraph:
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class GraphFsts:
     """Result from graph_to_fsts."""
 
@@ -425,7 +425,7 @@ def graph_to_fsts(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class GraphFst:
     """Result from graph_to_fst."""
 

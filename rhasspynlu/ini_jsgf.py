@@ -14,7 +14,7 @@ from .jsgf import Expression, Rule, Sentence, get_expression_count
 _LOGGER = logging.getLogger(__name__)
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class Grammar:
     """Named JSGF grammar with rules."""
 

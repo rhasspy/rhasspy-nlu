@@ -194,7 +194,7 @@ def paths_strict(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class FuzzyResult:
     """Single path for fuzzy recognition."""
 
@@ -203,7 +203,7 @@ class FuzzyResult:
     cost: float
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class FuzzyCostInput:
     """Input to fuzzy cost function."""
 
@@ -213,7 +213,7 @@ class FuzzyCostInput:
     word_transform: typing.Optional[typing.Callable[[str], str]] = None
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class FuzzyCostOutput:
     """Output from fuzzy cost function."""
 
@@ -421,7 +421,7 @@ def best_fuzzy_cost(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class ConverterInfo:
     """Local info for converter stack in path_to_recognition"""
 
