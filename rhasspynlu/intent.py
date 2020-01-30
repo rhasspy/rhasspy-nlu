@@ -27,7 +27,7 @@ class Intent:
     """Named intention with entities and slots."""
 
     name: str
-    confidence: float = 0)
+    confidence: float = 0
 
 
 @attr.s(auto_attribs=True)
@@ -61,8 +61,8 @@ class Recognition:
     raw_tokens: typing.List[str] = attr.Factory(list)
 
     # Transcription details
-    wav_seconds: float = attr.ib(default=0.0)
-    transcribe_seconds: float = attr.ib(default=0.0)
+    wav_seconds: float = 0.0
+    transcribe_seconds: float = 0.0
 
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
