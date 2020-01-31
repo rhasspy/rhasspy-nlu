@@ -355,7 +355,7 @@ def graph_to_fsts(
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+    start_node: int = next(n for n, data in n_data if data.get("start"))
 
     for _, intent_node, edge_data in graph.edges(start_node, data=True):
         intent_name: str = edge_data["olabel"][9:]
@@ -467,7 +467,7 @@ def graph_to_fst(
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+    start_node: int = next(n for n, data in n_data if data.get("start"))
 
     # Generate FST text
     with io.StringIO() as fst_file:

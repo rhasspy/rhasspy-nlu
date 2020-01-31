@@ -499,7 +499,7 @@ def get_expression_count(
             # Counts multiply down the sequence
             count = 1
             for sub_item in expression.items:
-                count = count * get_expression_count(
+                count *= get_expression_count(
                     sub_item,
                     replacements,
                     exclude_slots=exclude_slots,

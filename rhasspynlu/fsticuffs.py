@@ -132,7 +132,7 @@ def paths_strict(
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+    start_node: int = next(n for n, data in n_data if data.get("start"))
 
     # Number of matching paths found
     paths_found: int = 0
@@ -272,7 +272,7 @@ def paths_fuzzy(
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+    start_node: int = next(n for n, data in n_data if data.get("start"))
 
     # intent -> [(symbols, cost), (symbols, cost)...]
     intent_symbols_and_costs: typing.Dict[str, typing.List[FuzzyResult]] = defaultdict(
@@ -498,9 +498,7 @@ def path_to_recognition(
 
             # Detect arguments
             if "," in converter_name:
-                parts = converter_name.split(",")
-                converter_name = parts[0]
-                converter_args = parts[1:]
+                converter_name, *converter_args = converter_name.split(",")
 
             converter_stack.append(
                 ConverterInfo(
