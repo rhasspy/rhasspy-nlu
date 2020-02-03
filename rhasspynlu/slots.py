@@ -124,7 +124,7 @@ def get_slot_names(item: Expression) -> typing.Iterable[str]:
 
 
 def split_slot_args(
-    slot_name: str
+    slot_name: str,
 ) -> typing.Tuple[str, typing.Optional[typing.List[str]]]:
     """Split slot name and arguments out (slot,arg1,arg2,...)"""
     # Check for arguments.
