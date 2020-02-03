@@ -101,9 +101,7 @@ class StrictTestCase(unittest.TestCase):
 
         # Success with stop words
         recognitions = zero_times(
-            recognize(
-                "this is a abcd test", graph, stop_words=set(["abcd"]), fuzzy=False
-            )
+            recognize("this is a abcd test", graph, stop_words={"abcd"}, fuzzy=False)
         )
         self.assertEqual(
             recognitions,
@@ -330,7 +328,7 @@ class FuzzyTestCase(unittest.TestCase):
 
         # Higher confidence with stop words
         recognitions = zero_times(
-            recognize("this is a abcd test", graph, stop_words=set(["abcd"]))
+            recognize("this is a abcd test", graph, stop_words={"abcd"})
         )
         self.assertEqual(
             recognitions,

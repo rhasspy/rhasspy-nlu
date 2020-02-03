@@ -8,6 +8,7 @@ import attr
 import networkx as nx
 
 from .intent import Entity, Intent, Recognition, RecognitionResult
+from .jsgf_graph import get_start_end_nodes
 from .utils import pairwise
 
 # -----------------------------------------------------------------------------
@@ -132,7 +133,8 @@ def paths_strict(
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+    start_node, _ = get_start_end_nodes(graph)
+    assert start_node is not None
 
     # Number of matching paths found
     paths_found: int = 0
@@ -194,7 +196,7 @@ def paths_strict(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class FuzzyResult:
     """Single path for fuzzy recognition."""
 
@@ -203,7 +205,7 @@ class FuzzyResult:
     cost: float
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class FuzzyCostInput:
     """Input to fuzzy cost function."""
 
@@ -213,7 +215,7 @@ class FuzzyCostInput:
     word_transform: typing.Optional[typing.Callable[[str], str]] = None
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class FuzzyCostOutput:
     """Output from fuzzy cost function."""
 
@@ -272,7 +274,7 @@ def paths_fuzzy(
     n_data = graph.nodes(data=True)
 
     # start state
-    start_node: int = [n for n, data in n_data if data.get("start", False)][0]
+    start_node: int = next(n for n, data in n_data if data.get("start"))
 
     # intent -> [(symbols, cost), (symbols, cost)...]
     intent_symbols_and_costs: typing.Dict[str, typing.List[FuzzyResult]] = defaultdict(
@@ -421,7 +423,7 @@ def best_fuzzy_cost(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class ConverterInfo:
     """Local info for converter stack in path_to_recognition"""
 
@@ -498,9 +500,7 @@ def path_to_recognition(
 
             # Detect arguments
             if "," in converter_name:
-                parts = converter_name.split(",")
-                converter_name = parts[0]
-                converter_args = parts[1:]
+                converter_name, *converter_args = converter_name.split(",")
 
             converter_stack.append(
                 ConverterInfo(

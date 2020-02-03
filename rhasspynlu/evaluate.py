@@ -11,80 +11,80 @@ _LOGGER = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class WordError:
     """Detailed differences between reference and hypothesis strings."""
 
-    reference: typing.List[str] = attr.ib(factory=list)
-    hypothesis: typing.List[str] = attr.ib(factory=list)
-    differences: typing.List[str] = attr.ib(factory=list)
-    words: int = attr.ib(default=0)
-    errors: int = attr.ib(default=0)
-    matches: int = attr.ib(default=0)
-    substitutions: int = attr.ib(default=0)
-    deletions: int = attr.ib(default=0)
-    insertions: int = attr.ib(default=0)
-    error_rate: float = attr.ib(default=0.0)
+    reference: typing.List[str] = attr.Factory(list)
+    hypothesis: typing.List[str] = attr.Factory(list)
+    differences: typing.List[str] = attr.Factory(list)
+    words: int = 0
+    errors: int = 0
+    matches: int = 0
+    substitutions: int = 0
+    deletions: int = 0
+    insertions: int = 0
+    error_rate: float = 0.0
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class TestReportItem(Recognition):
     """Extended actual recognition result from TestReport."""
 
-    expected_intent_name: str = attr.ib(default="")
-    wrong_entities: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
-    missing_entities: typing.List[typing.Tuple[str, str]] = attr.ib(factory=list)
-    word_error: typing.Optional[WordError] = attr.ib(default=None)
+    expected_intent_name: str = ""
+    wrong_entities: typing.List[typing.Tuple[str, str]] = attr.Factory(list)
+    missing_entities: typing.List[typing.Tuple[str, str]] = attr.Factory(list)
+    word_error: typing.Optional[WordError] = None
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, slots=True)
 class TestReport:
     """Result of evaluate_intents."""
 
-    expected: typing.Dict[str, Recognition] = attr.ib(factory=dict)
-    actual: typing.Dict[str, TestReportItem] = attr.ib(factory=dict)
+    expected: typing.Dict[str, Recognition] = attr.Factory(dict)
+    actual: typing.Dict[str, TestReportItem] = attr.Factory(dict)
 
     # ----------
     # Statistics
     # ----------
 
     # Total number of WAV files
-    num_wavs: int = attr.ib(default=0)
+    num_wavs: int = 0
 
     # Number of words in all transcriptions (as counted by word_align.pl)
-    num_words: int = attr.ib(default=0)
+    num_words: int = 0
 
     # Total number of intents that were attempted
-    num_intents: int = attr.ib(default=0)
+    num_intents: int = 0
 
     # Number of entity/value pairs all intents
-    num_entities: int = attr.ib(default=0)
+    num_entities: int = 0
 
     # Number transcriptions that match *exactly*
-    correct_transcriptions: int = attr.ib(default=0)
+    correct_transcriptions: int = 0
 
     # Number of recognized intents that match expectations
-    correct_intent_names: int = attr.ib(default=0)
+    correct_intent_names: int = 0
 
     # Number of correct words in all transcriptions (as computed by word_align.pl)
-    correct_words: int = attr.ib(default=0)
+    correct_words: int = 0
 
     # Number of entity/value pairs that match *exactly* in all recognized intents
-    correct_entities: int = attr.ib(default=0)
+    correct_entities: int = 0
 
     # Number of intents where name and entities match exactly
-    correct_intent_and_entities: int = attr.ib(default=0)
+    correct_intent_and_entities: int = 0
 
-    transcription_accuracy: float = attr.ib(default=1.0)
+    transcription_accuracy: float = 1.0
 
-    intent_accuracy: float = attr.ib(default=1.0)
+    intent_accuracy: float = 1.0
 
-    entity_accuracy: float = attr.ib(default=1.0)
+    entity_accuracy: float = 1.0
 
-    intent_entity_accuracy: float = attr.ib(default=1.0)
+    intent_entity_accuracy: float = 1.0
 
     # Average wav seconds / transcribe seconds
-    average_transcription_speedup: float = attr.ib(default=1.0)
+    average_transcription_speedup: float = 1.0
 
 
 # -----------------------------------------------------------------------------
@@ -103,7 +103,7 @@ def evaluate_intents(
     # Compute statistics
     for wav_name, actual_intent in actual.items():
         # pylint: disable=E1137
-        report.actual[wav_name] = TestReportItem(**actual_intent.__dict__)
+        report.actual[wav_name] = TestReportItem(**actual_intent.asdict())
 
         # Get corresponding expected intent
         expected_intent = expected[wav_name]
