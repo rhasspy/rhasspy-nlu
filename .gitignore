@@ -8,3 +8,5 @@ coverage.xml
 dist/
 .vscode/
 download/
+debian/rhasspy-nlu*
+pyinstaller/

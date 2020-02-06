@@ -1,0 +1,7 @@
+Package: rhasspy-nlu
+Version: ${version}
+Section: utils
+Priority: optional
+Architecture: ${architecture}
+Maintainer: Michael Hansen
+Description: Command-line interface to rhasspy nlu

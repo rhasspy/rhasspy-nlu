@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+if [[ -z "${rhasspynlu_dir}" ]]; then
+    this_dir="$( cd "$( dirname "$0" )" && pwd )"
+    rhasspynlu_dir="${this_dir}/../lib/rhasspynlu"
+fi
+
+"${rhasspynlu_dir}/rhasspynlu" "$@"
