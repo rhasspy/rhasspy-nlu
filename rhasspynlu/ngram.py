@@ -38,9 +38,9 @@ def get_intent_ngram_counts(
 
         # First word(s) of intent
         valid_nodes = set([start_node])
-        for word_node in graph.successors(intent_node):
-            valid_nodes.add(word_node)
-            valid_nodes.update(nx.descendants(word_graph, word_node))
+        for maybe_word_node in nx.descendants(graph, intent_node):
+            if maybe_word_node in word_graph:
+                valid_nodes.add(maybe_word_node)
 
         # Filter out nodes not part of this intent
         def filter_node(n):
