@@ -164,7 +164,7 @@ def expression_to_graph(
         # Prefix with $
         slot_name = "$" + slot_ref.slot_name
         slot_values = replacements.get(slot_name)
-        assert slot_values, f"Missing slot {slot_values}"
+        assert slot_values, f"Missing slot {slot_name}"
 
         # Interpret as alternative
         slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=list(slot_values))
