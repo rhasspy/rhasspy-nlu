@@ -32,6 +32,7 @@ def expression_to_graph(
     empty_substitution: bool = False,
     grammar_name: typing.Optional[str] = None,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
+    rule_grammar: str = "",
 ) -> int:
     """Insert JSGF expression into a graph. Return final state."""
     replacements = replacements or {}
@@ -87,6 +88,7 @@ def expression_to_graph(
                     empty_substitution=empty_substitution,
                     grammar_name=grammar_name,
                     count_dict=count_dict,
+                    rule_grammar=rule_grammar,
                 )
                 final_states.append(next_state)
 
@@ -109,6 +111,7 @@ def expression_to_graph(
                     empty_substitution=empty_substitution,
                     grammar_name=grammar_name,
                     count_dict=count_dict,
+                    rule_grammar=rule_grammar,
                 )
 
             source_state = next_state
@@ -134,9 +137,14 @@ def expression_to_graph(
         if rule_ref.grammar_name:
             # Fully resolved rule name
             rule_name = f"{rule_ref.grammar_name}.{rule_ref.rule_name}"
+            rule_grammar = rule_ref.grammar_name
+        elif rule_grammar:
+            # Nested rule
+            rule_name = f"{rule_grammar}.{rule_ref.rule_name}"
         elif grammar_name:
             # Local rule
             rule_name = f"{grammar_name}.{rule_ref.rule_name}"
+            rule_grammar = grammar_name
         else:
             # Unresolved rule name
             rule_name = rule_ref.rule_name
@@ -156,6 +164,7 @@ def expression_to_graph(
             empty_substitution=empty_substitution,
             grammar_name=grammar_name,
             count_dict=count_dict,
+            rule_grammar=rule_grammar,
         )
     elif isinstance(expression, SlotReference):
         # Reference to slot values
@@ -176,6 +185,7 @@ def expression_to_graph(
             empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
             grammar_name=grammar_name,
             count_dict=count_dict,
+            rule_grammar=rule_grammar,
         )
 
     # Handle sequence substitution
