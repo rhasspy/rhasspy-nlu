@@ -255,14 +255,18 @@ class FstTestCase(unittest.TestCase):
             ),
         )
 
+
 # -----------------------------------------------------------------------------
+
 
 class MiscellaneousTestCase(unittest.TestCase):
     """Miscellaneous JSGF graph test cases"""
 
+    # pylint: disable=R0201
     def test_nested_remote_rule(self):
         """Test a nested rule reference from a separate grammar."""
-        intents = parse_ini("""
+        intents = parse_ini(
+            """
         [TestIntent1]
         test_rule_1 = <test_rule_2>
         test_rule_2 = test
@@ -270,7 +274,8 @@ class MiscellaneousTestCase(unittest.TestCase):
 
         [TestIntent2]
         this is another <TestIntent1.test_rule_1>
-        """)
+        """
+        )
 
         # Will fail to parse if nested rule references are broken
         intents_to_graph(intents)

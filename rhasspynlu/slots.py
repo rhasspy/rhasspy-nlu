@@ -6,7 +6,7 @@ from pathlib import Path
 
 import attr
 
-from .const import ReplacementsType, SentencesType
+from .const import IntentsType, ReplacementsType
 from .jsgf import Expression, Rule, Sentence, Sequence, SlotReference, walk_expression
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class SlotProgramInfo:
 
 
 def get_slot_replacements(
-    sentences: SentencesType,
+    sentences: IntentsType,
     slots_dirs: typing.List[Path],
     slot_programs_dirs: typing.List[Path],
     slot_visitor: typing.Optional[
@@ -110,7 +110,7 @@ def get_slot_replacements(
 # -----------------------------------------------------------------------------
 
 
-def get_slot_names(item: Expression) -> typing.Iterable[str]:
+def get_slot_names(item: typing.Union[Expression, Rule]) -> typing.Iterable[str]:
     """Yield referenced slot names from an expression."""
     if isinstance(item, SlotReference):
         yield item.slot_name
