@@ -13,5 +13,5 @@ from .jsgf_graph import (
     sentences_to_graph,
 )
 from .ngram import get_intent_ngram_counts
-from .numbers import number_range_transform, number_transform
+from .numbers import number_range_transform, number_transform, replace_numbers
 from .slots import get_slot_replacements
