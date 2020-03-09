@@ -1,5 +1,6 @@
 """Recognition functions for sentences using JSGF graphs."""
 import itertools
+import random
 import time
 import typing
 from collections import defaultdict
@@ -642,3 +643,47 @@ def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any
         "lower": lambda *args: map(str.lower, args),
         "upper": lambda *args: map(str.upper, args),
     }
+
+
+# -----------------------------------------------------------------------------
+
+
+def sample_by_intent(
+    intent_graph: nx.DiGraph,
+    num_samples: typing.Optional[int] = None,
+    **recognition_args,
+) -> typing.Dict[str, typing.List[Recognition]]:
+    """Sample sentences from a graph."""
+
+    sentences_by_intent: typing.Dict[str, typing.List[Recognition]] = defaultdict(list)
+
+    start_node = None
+    end_node = None
+    for node, node_data in intent_graph.nodes(data=True):
+        if node_data.get("start", False):
+            start_node = node
+        elif node_data.get("final", False):
+            end_node = node
+
+        if start_node and end_node:
+            break
+
+    assert (start_node is not None) and (
+        end_node is not None
+    ), "Missing start/end node(s)"
+
+    if num_samples is not None:
+        # Randomly sample
+        paths = random.sample(
+            list(nx.all_simple_paths(intent_graph, start_node, end_node)), num_samples
+        )
+    else:
+        # Use generator
+        paths = nx.all_simple_paths(intent_graph, start_node, end_node)
+
+    for path in paths:
+        _, recognition = path_to_recognition(path, intent_graph, **recognition_args)
+        assert recognition, "Path failed"
+        sentences_by_intent[recognition.intent.name].append(recognition)
+
+    return sentences_by_intent

@@ -7,6 +7,7 @@ import os
 import sys
 
 from . import graph_to_fst, graph_to_json, intents_to_graph, parse_ini
+from .fsticuffs import sample_by_intent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ def main():
         "--fst-osymbols",
         default="fst.osymbols.txt",
         help="Path to FST output symbols file",
+    )
+    parser.add_argument(
+        "--sample", type=int, help="Generate sample sentences (0 = all)"
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
@@ -77,6 +81,24 @@ def main():
             )
 
             graph_fst.write_fst(args.fst_text, args.fst_isymbols, args.fst_osymbols)
+        elif args.sample is not None:
+            if args.sample > 0:
+                num_samples = args.sample
+                _LOGGER.debug("Generating %s sample(s)", args.sample)
+            else:
+                num_samples = None
+                _LOGGER.debug("Generating all sentences")
+
+            sentences_by_intent = sample_by_intent(graph, num_samples)
+
+            # Output JSON
+            json.dump(
+                {
+                    intent: [r.asdict() for r in recognitions]
+                    for intent, recognitions in sentences_by_intent.items()
+                },
+                sys.stdout,
+            )
         else:
             # Output JSON
             _LOGGER.debug("Writing to stdout")
