@@ -78,6 +78,7 @@ class Recognition:
     # Transcription details
     wav_seconds: float = 0.0
     transcribe_seconds: float = 0.0
+    speech_confidence: float = 0.0
 
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
@@ -91,6 +92,7 @@ class Recognition:
     @classmethod
     def from_dict(cls, recognition_dict: typing.Dict[str, typing.Any]) -> "Recognition":
         """Create Recognition from dictionary."""
+        # Exclude unused fields from Rhasspy JSON format
         recognition_dict.pop("intents", None)
 
         intent_dict = recognition_dict.pop("intent", None)
