@@ -684,6 +684,7 @@ def sample_by_intent(
     for path in paths:
         _, recognition = path_to_recognition(path, intent_graph, **recognition_args)
         assert recognition, "Path failed"
-        sentences_by_intent[recognition.intent.name].append(recognition)
+        if recognition.intent:
+            sentences_by_intent[recognition.intent.name].append(recognition)
 
     return sentences_by_intent
