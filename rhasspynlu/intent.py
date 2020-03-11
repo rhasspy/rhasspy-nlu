@@ -92,8 +92,10 @@ class Recognition:
     @classmethod
     def from_dict(cls, recognition_dict: typing.Dict[str, typing.Any]) -> "Recognition":
         """Create Recognition from dictionary."""
+
         # Exclude unused fields from Rhasspy JSON format
-        recognition_dict.pop("intents", None)
+        for unused_field in ["intents", "wakewordId"]:
+            recognition_dict.pop(unused_field, None)
 
         intent_dict = recognition_dict.pop("intent", None)
         entity_dicts = recognition_dict.pop("entities", None)
