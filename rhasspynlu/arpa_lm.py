@@ -1,17 +1,57 @@
 """Utilities for ARPA language models."""
 import logging
 import subprocess
+import tempfile
 import typing
 from pathlib import Path
 
+import networkx as nx
+
+from .jsgf_graph import graph_to_fst
+
 _LOGGER = logging.getLogger(__name__)
+
+# -----------------------------------------------------------------------------
+
+
+def graph_to_arpa(
+    graph: nx.DiGraph,
+    arpa_path: typing.Union[str, Path],
+    vocab_path: typing.Optional[typing.Union[str, Path]],
+):
+    """Convert intent graph to ARPA language model."""
+    with tempfile.TemporaryDirectory() as temp_dir_str:
+        temp_dir = Path(temp_dir_str)
+        fst_text_path = temp_dir / "graph.fst.txt"
+        isymbols_path = temp_dir / "isymbols.txt"
+        osymbols_path = temp_dir / "osymbols.txt"
+
+        # Graph -> binary FST
+        graph_to_fst(graph).write_fst(fst_text_path, isymbols_path, osymbols_path)
+
+        if vocab_path:
+            # Extract vocabulary
+            with open(vocab_path, "w") as vocab_file:
+                with open(isymbols_path, "r") as isymbols_file:
+                    for line in isymbols_file:
+                        line = line.strip()
+                        if line:
+                            # symbol N
+                            isymbol = line[: line.rfind(" ")]
+                            if isymbol and (isymbol[0] not in ["_", "<"]):
+                                print(isymbol, file=vocab_file)
+
+                _LOGGER.debug("Wrote vocabulary to %s", vocab_path)
+
+        # Convert to ARPA
+        fst_to_arpa(fst_text_path, isymbols_path, osymbols_path, arpa_path)
 
 
 def fst_to_arpa(
     fst_text_path: typing.Union[str, Path],
     isymbols_path: typing.Union[str, Path],
     osymbols_path: typing.Union[str, Path],
-    arpa_path: Path,
+    arpa_path: typing.Union[str, Path],
     **kwargs,
 ):
     """Convert text FST to ARPA language model using opengrm."""
@@ -127,9 +167,10 @@ def fst_to_arpa_tasks(
 
 def run_task(task: typing.Dict[str, typing.Any]):
     """Execute a doit compatible task."""
+    name = task.get("name", "task")
     for action in task["actions"]:
         file_dep = " ".join(f'"{d}"' for d in task.get("file_dep", []))
         targets = " ".join(f'"{t}"' for t in task.get("targets", []))
         command = action % {"dependencies": file_dep, "targets": targets}
-        _LOGGER.debug(command)
+        _LOGGER.debug("%s: %s", name, command)
         subprocess.check_call(command, shell=True)

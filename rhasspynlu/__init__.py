@@ -1,6 +1,6 @@
 """Utilities for Rhasspy natural language understanding."""
 
-from .arpa_lm import arpa_to_fst, fst_to_arpa
+from .arpa_lm import arpa_to_fst, fst_to_arpa, graph_to_arpa
 from .evaluate import evaluate_intents
 from .fsticuffs import recognize
 from .ini_jsgf import parse_ini
