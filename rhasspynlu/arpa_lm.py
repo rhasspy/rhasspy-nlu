@@ -1,5 +1,6 @@
 """Utilities for ARPA language models."""
 import logging
+import shutil
 import subprocess
 import tempfile
 import typing
@@ -8,6 +9,7 @@ from pathlib import Path
 import networkx as nx
 
 from .jsgf_graph import graph_to_fst
+from .ngram import get_intent_ngram_counts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,9 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 def graph_to_arpa(
     graph: nx.DiGraph,
     arpa_path: typing.Union[str, Path],
-    vocab_path: typing.Optional[typing.Union[str, Path]],
+    vocab_path: typing.Optional[typing.Union[str, Path]] = None,
 ):
-    """Convert intent graph to ARPA language model."""
+    """Convert intent graph to ARPA language model using opengrm."""
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         fst_text_path = temp_dir / "graph.fst.txt"
@@ -59,6 +61,60 @@ def fst_to_arpa(
         fst_text_path, isymbols_path, osymbols_path, arpa_path, **kwargs
     ):
         run_task(task)
+
+
+def graph_to_arpa_small(
+    graph: nx.DiGraph,
+    arpa_path: typing.Union[str, Path],
+    vocab_path: typing.Optional[typing.Union[str, Path]] = None,
+    dictionary_word_transform: typing.Optional[typing.Callable[[str], str]] = None,
+    balance_counts: bool = True,
+    estimate_ngram: typing.Optional[typing.Union[str, Path]] = None,
+):
+    """Convert intent graph to ARPA language model using MITLM. Works better for small graphs."""
+    estimate_ngram = estimate_ngram or shutil.which("estimate-ngram")
+    assert estimate_ngram, "Missing estimate-ngram in PATH"
+
+    # Generate counts
+    _LOGGER.debug("Generating ngram counts")
+    intent_counts = get_intent_ngram_counts(graph, balance_counts=balance_counts)
+
+    # Create ngram counts file
+    with tempfile.NamedTemporaryFile(mode="w+") as count_file:
+        for intent_name in intent_counts:
+            for ngram, count in intent_counts[intent_name].items():
+                if dictionary_word_transform:
+                    ngram = [dictionary_word_transform(w) for w in ngram]
+
+                # word [word] ... <TAB> count
+                print(*ngram, file=count_file, end="")
+                print("\t", count, file=count_file)
+
+        count_file.seek(0)
+        with tempfile.NamedTemporaryFile(mode="w+") as vocab_file:
+            ngram_command = [
+                str(estimate_ngram),
+                "-order",
+                "3",
+                "-counts",
+                count_file.name,
+                "-write-lm",
+                str(arpa_path),
+                "-write-vocab",
+                vocab_file.name,
+            ]
+
+            _LOGGER.debug(ngram_command)
+            subprocess.check_call(ngram_command)
+
+            if vocab_path:
+                # Copy over real file
+                vocab_file.seek(0)
+                with open(vocab_path, "w") as real_vocab_file:
+                    for line in vocab_file:
+                        line = line.strip()
+                        if line and (line[0] not in ["_", "<"]):
+                            print(line, file=real_vocab_file)
 
 
 # -----------------------------------------------------------------------------
