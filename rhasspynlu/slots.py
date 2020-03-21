@@ -7,7 +7,15 @@ from pathlib import Path
 import attr
 
 from .const import IntentsType, ReplacementsType
-from .jsgf import Expression, Rule, Sentence, Sequence, SlotReference, walk_expression
+from .jsgf import (
+    Expression,
+    Rule,
+    Sentence,
+    Sequence,
+    SlotReference,
+    Substitutable,
+    walk_expression,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,10 +69,10 @@ def get_slot_replacements(
 
         # Find slot file/program in file system
         slot_info = find_slot(slot_key, slots_dirs, slot_programs_dirs)
+        slot_values: typing.List[Expression] = []
 
         if isinstance(slot_info, StaticSlotInfo):
             # Parse each non-empty line as a JSGF sentence
-            slot_values: typing.List[Expression] = []
             _LOGGER.debug("Loading slot %s from %s", slot_key, str(slot_info.path))
             with open(slot_info.path, "r") as slot_file:
                 for line in slot_file:
@@ -81,7 +89,6 @@ def get_slot_replacements(
             _LOGGER.debug("Running program for slot %s: %s", slot_key, slot_command)
 
             # Parse each non-empty line as a JSGF sentence
-            slot_values = []
             for line in subprocess.check_output(
                 slot_command, universal_newlines=True
             ).splitlines():
@@ -99,7 +106,12 @@ def get_slot_replacements(
                 slots_dirs,
                 slot_programs_dirs,
             )
-            slot_values = []
+
+        # Generate automatic substitutions.
+        # This will preserve upper/lower case in slot values.
+        for value in slot_values:
+            if isinstance(value, Substitutable) and (value.substitution is None):
+                value.substitution = value.text
 
         # Replace $slot with sentences
         replacements[f"${slot_key}"] = slot_values
