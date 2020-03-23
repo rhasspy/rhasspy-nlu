@@ -107,12 +107,6 @@ def get_slot_replacements(
                 slot_programs_dirs,
             )
 
-        # Generate automatic substitutions.
-        # This will preserve upper/lower case in slot values.
-        for value in slot_values:
-            if isinstance(value, Substitutable) and (value.substitution is None):
-                value.substitution = value.text
-
         # Replace $slot with sentences
         replacements[f"${slot_key}"] = slot_values
 
