@@ -7,15 +7,7 @@ from pathlib import Path
 import attr
 
 from .const import IntentsType, ReplacementsType
-from .jsgf import (
-    Expression,
-    Rule,
-    Sentence,
-    Sequence,
-    SlotReference,
-    Substitutable,
-    walk_expression,
-)
+from .jsgf import Expression, Rule, Sentence, Sequence, SlotReference, walk_expression
 
 _LOGGER = logging.getLogger(__name__)
 

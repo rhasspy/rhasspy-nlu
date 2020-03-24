@@ -1,4 +1,5 @@
 """Utilities to convert JSGF sentences to directed graphs."""
+import gzip
 import io
 import math
 import typing
@@ -354,6 +355,18 @@ def graph_to_json(graph: nx.DiGraph) -> typing.Dict[str, typing.Any]:
 def json_to_graph(json_dict: typing.Dict[str, typing.Any]) -> nx.DiGraph:
     """Convert from deserialized JSON dict to graph."""
     return nx.readwrite.json_graph.node_link_graph(json_dict)
+
+
+def graph_to_gzip_pickle(graph: nx.DiGraph, out_file: typing.BinaryIO):
+    """Convert to binary gzip pickle format."""
+    with gzip.GzipFile(fileobj=out_file, mode="wb") as graph_gzip:
+        nx.readwrite.gpickle.write_gpickle(graph, graph_gzip)
+
+
+def gzip_pickle_to_graph(in_file: typing.BinaryIO) -> nx.DiGraph:
+    """Convert from binary gzip pickle format."""
+    with gzip.GzipFile(fileobj=in_file, mode="rb") as graph_gzip:
+        return nx.readwrite.gpickle.read_gpickle(graph_gzip)
 
 
 # -----------------------------------------------------------------------------
