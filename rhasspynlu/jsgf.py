@@ -1,12 +1,11 @@
 """Parses a subset of JSGF into objects."""
 import re
 import typing
+from dataclasses import dataclass, field
 from enum import Enum
 
-import attr
 
-
-@attr.s(hash=False, auto_attribs=True)
+@dataclass
 class Substitutable:
     """Indicates an expression may be replaced with some text."""
 
@@ -14,10 +13,10 @@ class Substitutable:
     substitution: typing.Optional[str] = None
 
     # Names of converters to apply after substitution
-    converters: typing.List[str] = attr.Factory(list)
+    converters: typing.List[str] = field(default_factory=list)
 
 
-@attr.s(hash=False, auto_attribs=True)
+@dataclass
 class Tag(Substitutable):
     """{tag} attached to an expression."""
 
@@ -25,7 +24,7 @@ class Tag(Substitutable):
     tag_text: str = ""
 
 
-@attr.s(hash=False, auto_attribs=True)
+@dataclass
 class Taggable:
     """Indicates an expression may be tagged."""
 
@@ -33,7 +32,7 @@ class Taggable:
     tag: typing.Optional[Tag] = None
 
 
-@attr.s(hash=False, auto_attribs=True)
+@dataclass
 class Expression:
     """Base class for most JSGF types."""
 
@@ -41,8 +40,8 @@ class Expression:
     text: str = ""
 
 
-@attr.s(hash=False)
-class Word(Expression, Taggable, Substitutable):
+@dataclass
+class Word(Substitutable, Taggable, Expression):
     """Single word/token."""
 
 
@@ -56,19 +55,19 @@ class SequenceType(str, Enum):
     ALTERNATIVE = "alternative"
 
 
-@attr.s(hash=False, auto_attribs=True)
-class Sequence(Expression, Taggable, Substitutable):
+@dataclass
+class Sequence(Substitutable, Taggable, Expression):
     """Ordered sequence of expressions. Supports groups, optionals, and alternatives."""
 
     # Items in the sequence
-    items: typing.List[Expression] = attr.Factory(list)
+    items: typing.List[Expression] = field(default_factory=list)
 
     # Group or alternative
     type: SequenceType = SequenceType.GROUP
 
 
-@attr.s(hash=False, auto_attribs=True)
-class RuleReference(Expression, Taggable):
+@dataclass
+class RuleReference(Taggable, Expression):
     """Reference to a rule by <name> or <grammar.name>."""
 
     # Name of referenced rule
@@ -78,15 +77,15 @@ class RuleReference(Expression, Taggable):
     grammar_name: typing.Optional[str] = None
 
 
-@attr.s(hash=False, auto_attribs=True)
-class SlotReference(Expression, Taggable, Substitutable):
+@dataclass
+class SlotReference(Substitutable, Taggable, Expression):
     """Reference to a slot by $name."""
 
     # Name of referenced slot
     slot_name: str = ""
 
 
-@attr.s(hash=False)
+@dataclass
 class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
@@ -105,7 +104,7 @@ class Sentence(Sequence):
         )
 
 
-@attr.s(hash=False, auto_attribs=True)
+@dataclass
 class Rule:
     """Named rule with body."""
 
@@ -161,7 +160,7 @@ def walk_expression(
     elif isinstance(expression, Rule):
         new_body = walk_expression(expression.rule_body, visit, replacements)
         if new_body:
-            assert isinstance(new_body, Expression)
+            assert isinstance(new_body, Sentence)
             expression.rule_body = new_body
     elif isinstance(expression, RuleReference):
         key = f"<{expression.rule_name}>"

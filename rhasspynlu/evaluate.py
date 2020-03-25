@@ -1,8 +1,7 @@
 """Methods for evaluating recognition results."""
 import logging
 import typing
-
-import attr
+from dataclasses import dataclass, field
 
 from .intent import Recognition
 
@@ -11,13 +10,13 @@ _LOGGER = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class WordError:
     """Detailed differences between reference and hypothesis strings."""
 
-    reference: typing.List[str] = attr.Factory(list)
-    hypothesis: typing.List[str] = attr.Factory(list)
-    differences: typing.List[str] = attr.Factory(list)
+    reference: typing.List[str] = field(default_factory=list)
+    hypothesis: typing.List[str] = field(default_factory=list)
+    differences: typing.List[str] = field(default_factory=list)
     words: int = 0
     errors: int = 0
     matches: int = 0
@@ -27,22 +26,22 @@ class WordError:
     error_rate: float = 0.0
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class TestReportItem(Recognition):
     """Extended actual recognition result from TestReport."""
 
     expected_intent_name: str = ""
-    wrong_entities: typing.List[typing.Tuple[str, str]] = attr.Factory(list)
-    missing_entities: typing.List[typing.Tuple[str, str]] = attr.Factory(list)
+    wrong_entities: typing.List[typing.Tuple[str, str]] = field(default_factory=list)
+    missing_entities: typing.List[typing.Tuple[str, str]] = field(default_factory=list)
     word_error: typing.Optional[WordError] = None
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class TestReport:
     """Result of evaluate_intents."""
 
-    expected: typing.Dict[str, Recognition] = attr.Factory(dict)
-    actual: typing.Dict[str, TestReportItem] = attr.Factory(dict)
+    expected: typing.Dict[str, Recognition] = field(default_factory=dict)
+    actual: typing.Dict[str, TestReportItem] = field(default_factory=dict)
 
     # ----------
     # Statistics

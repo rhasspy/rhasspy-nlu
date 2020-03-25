@@ -10,6 +10,10 @@ PIP_INSTALL ?= install
 version := $(shell cat VERSION)
 architecture := $(shell dpkg-architecture | grep DEB_BUILD_ARCH= | sed 's/[^=]\+=//')
 
+all: venv
+
+# -----------------------------------------------------------------------------
+
 reformat:
 	scripts/format-code.sh $(PYTHON_FILES)
 

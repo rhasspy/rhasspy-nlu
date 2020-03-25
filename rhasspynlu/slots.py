@@ -2,9 +2,8 @@
 import logging
 import subprocess
 import typing
+from dataclasses import dataclass
 from pathlib import Path
-
-import attr
 
 from .const import IntentsType, ReplacementsType
 from .jsgf import Expression, Rule, Sentence, Sequence, SlotReference, walk_expression
@@ -14,22 +13,22 @@ _LOGGER = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 
-@attr.s
+@dataclass
 class StaticSlotInfo:
     """Name/path to a static slot text file."""
 
-    name: str = attr.ib()
-    path: Path = attr.ib()
+    name: str
+    path: Path
 
 
-@attr.s
+@dataclass
 class SlotProgramInfo:
     """Name/path/arguments for a slot program."""
 
-    key: str = attr.ib()
-    name: str = attr.ib()
-    path: Path = attr.ib()
-    args: typing.Optional[typing.List[str]] = attr.ib(default=None)
+    key: str
+    name: str
+    path: Path
+    args: typing.Optional[typing.List[str]] = None
 
 
 # -----------------------------------------------------------------------------

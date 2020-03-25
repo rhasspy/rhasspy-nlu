@@ -5,9 +5,8 @@ import logging
 import re
 import typing
 from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
-
-import attr
 
 from .const import IntentsType, ReplacementsType, SentencesType
 from .jsgf import (
@@ -24,12 +23,12 @@ from .jsgf import (
 _LOGGER = logging.getLogger(__name__)
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class Grammar:
     """Named JSGF grammar with rules."""
 
     grammar_name: str = ""
-    rules: typing.List[Rule] = attr.Factory(list)
+    rules: typing.List[Rule] = field(default_factory=list)
 
     GRAMMAR_DECLARATION = re.compile(r"^grammar ([^;]+);$")
 

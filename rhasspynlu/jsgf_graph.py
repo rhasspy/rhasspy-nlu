@@ -3,9 +3,9 @@ import gzip
 import io
 import math
 import typing
+from dataclasses import dataclass
 from pathlib import Path
 
-import attr
 import networkx as nx
 
 from .const import IntentsType, ReplacementsType, SentencesType
@@ -372,7 +372,7 @@ def gzip_pickle_to_graph(in_file: typing.BinaryIO) -> nx.DiGraph:
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class GraphFsts:
     """Result from graph_to_fsts."""
 
@@ -463,7 +463,7 @@ def graph_to_fsts(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class GraphFst:
     """Result from graph_to_fst."""
 

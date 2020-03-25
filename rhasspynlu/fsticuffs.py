@@ -4,8 +4,8 @@ import random
 import time
 import typing
 from collections import defaultdict
+from dataclasses import dataclass, field
 
-import attr
 import networkx as nx
 
 from .intent import Entity, Intent, Recognition, RecognitionResult
@@ -197,7 +197,7 @@ def paths_strict(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class FuzzyResult:
     """Single path for fuzzy recognition."""
 
@@ -206,7 +206,7 @@ class FuzzyResult:
     cost: float
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class FuzzyCostInput:
     """Input to fuzzy cost function."""
 
@@ -216,7 +216,7 @@ class FuzzyCostInput:
     word_transform: typing.Optional[typing.Callable[[str], str]] = None
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class FuzzyCostOutput:
     """Output from fuzzy cost function."""
 
@@ -424,7 +424,7 @@ def best_fuzzy_cost(
 # -----------------------------------------------------------------------------
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class ConverterInfo:
     """Local info for converter stack in path_to_recognition"""
 
@@ -438,7 +438,7 @@ class ConverterInfo:
     args: typing.Optional[typing.List[str]] = None
 
     # List of raw/substituted tokens
-    tokens: typing.List[typing.Tuple[str, str]] = attr.Factory(list)
+    tokens: typing.List[typing.Tuple[str, str]] = field(default_factory=list)
 
 
 def path_to_recognition(

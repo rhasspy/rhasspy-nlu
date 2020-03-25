@@ -1,13 +1,13 @@
 """
 Data structures for intent recognition.
 """
+import dataclasses
 import typing
+from dataclasses import dataclass, field
 from enum import Enum
 
-import attr
 
-
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class Entity:
     """Named entity from intent."""
 
@@ -18,8 +18,8 @@ class Entity:
     raw_start: int = 0
     end: int = 0
     raw_end: int = 0
-    tokens: typing.List[typing.Any] = attr.Factory(list)
-    raw_tokens: typing.List[str] = attr.Factory(list)
+    tokens: typing.List[typing.Any] = field(default_factory=list)
+    raw_tokens: typing.List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, entity_dict: typing.Dict[str, typing.Any]) -> "Entity":
@@ -27,7 +27,7 @@ class Entity:
         return Entity(**entity_dict)
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class Intent:
     """Named intention with entities and slots."""
 
@@ -40,15 +40,15 @@ class Intent:
         return Intent(**intent_dict)
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class TagInfo:
     """Information used to process FST tags."""
 
     tag: str
     start_index: int = 0
     raw_start_index: int = 0
-    symbols: typing.List[str] = attr.Factory(list)
-    raw_symbols: typing.List[str] = attr.Factory(list)
+    symbols: typing.List[str] = field(default_factory=list)
+    raw_symbols: typing.List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, tag_dict: typing.Dict[str, typing.Any]) -> "TagInfo":
@@ -63,17 +63,17 @@ class RecognitionResult(str, Enum):
     FAILURE = "failure"
 
 
-@attr.s(auto_attribs=True, slots=True)
+@dataclass
 class Recognition:
     """Output of intent recognition."""
 
     intent: typing.Optional[Intent] = None
-    entities: typing.List[Entity] = attr.Factory(list)
+    entities: typing.List[Entity] = field(default_factory=list)
     text: str = ""
     raw_text: str = ""
     recognize_seconds: float = 0
-    tokens: typing.List[typing.Any] = attr.Factory(list)
-    raw_tokens: typing.List[str] = attr.Factory(list)
+    tokens: typing.List[typing.Any] = field(default_factory=list)
+    raw_tokens: typing.List[str] = field(default_factory=list)
 
     # Transcription details
     wav_seconds: float = 0.0
@@ -82,7 +82,7 @@ class Recognition:
 
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
-        return attr.asdict(self)
+        return dataclasses.asdict(self)
 
     @classmethod
     def empty(cls) -> "Recognition":
