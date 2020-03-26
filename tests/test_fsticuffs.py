@@ -596,7 +596,7 @@ class MiscellaneousTestCase(unittest.TestCase):
         # Check sequence substitution
         self.assertEqual(recognition.text, "play me Classical Music")
 
-    def test_case_preservation(self):
+    def test_word_case_preservation(self):
         """Ensure word casing is preserved in raw text."""
         ini_text = """
         [TestIntent]
@@ -621,6 +621,33 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(foo.entity, "foo")
         self.assertEqual(foo.value, "test")
         self.assertEqual(foo.raw_value, "TEST")
+
+    def test_slot_case_preservation(self):
+        """Ensure word casing is preserved in raw text."""
+        ini_text = """
+        [TestIntent]
+        this is a ($test){foo}
+        """
+
+        replacements = {"$test": [Sentence.parse("Bar")]}
+        graph = intents_to_graph(parse_ini(ini_text), replacements)
+
+        recognitions = zero_times(
+            recognize("this is a bar", graph, fuzzy=False, word_transform=str.lower)
+        )
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        # Check sequence substitution
+        self.assertEqual(recognition.text, "this is a Bar")
+        self.assertEqual(recognition.raw_text, "this is a bar")
+
+        self.assertEqual(len(recognition.entities), 1)
+        foo = recognition.entities[0]
+        self.assertEqual(foo.entity, "foo")
+        self.assertEqual(foo.value, "Bar")
+        self.assertEqual(foo.raw_value, "bar")
 
 
 # -----------------------------------------------------------------------------
