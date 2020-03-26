@@ -205,7 +205,41 @@ def walk_expression(
 
 def split_words(text: str) -> typing.Iterable[Expression]:
     """Split words by whitespace. Detect slot references and substitutions."""
-    for token in text.split():
+    tokens: typing.List[str] = []
+    token: str = ""
+    last_c: str = ""
+    in_seq_sub: bool = False
+
+    # Process words, correctly handling substitution sequences.
+    # e.g., input:(output words)
+    for c in text:
+        break_token = False
+
+        if (c == "(") and (last_c == ":"):
+            # Begin sequence substitution
+            in_seq_sub = True
+        elif in_seq_sub and (c == ")"):
+            # End sequence substitution
+            in_seq_sub = False
+            break_token = True
+        elif c == " " and (not in_seq_sub):
+            # Whitespace break (not inside sequence substitution)
+            break_token = True
+        else:
+            # Accumulate into token
+            token += c
+
+        if break_token and token:
+            tokens.append(token)
+            token = ""
+
+        last_c = c
+
+    if token:
+        # Last token
+        tokens.append(token)
+
+    for token in tokens:
         if token.startswith("$"):
             if ":" in token:
                 # Slot with substitutions
@@ -299,11 +333,11 @@ def parse_expression(
             if text[next_index] == "(":
                 # Find end of group
                 next_end = [")"] + end
-                is_seq_sub = True
+                next_seq_sub = True
             else:
                 # Find end of word
                 next_end = [" "] + end
-                is_seq_sub = False
+                next_seq_sub = False
 
             next_index = parse_expression(
                 None, text[current_index + 1 :], next_end, is_literal=False
@@ -315,7 +349,7 @@ def parse_expression(
             else:
                 next_index += current_index - 1
 
-            if is_seq_sub:
+            if next_seq_sub:
                 # Consume end paren
                 next_index += 1
                 assert text[next_index - 1] == ")", "Missing end parenthesis"
@@ -335,7 +369,7 @@ def parse_expression(
                 conv_text = text[current_index + 1 : next_index].strip()
                 last_taggable.converters = conv_text.split("!")
 
-        elif c in {"<", "(", "[", "{", "|"}:
+        elif (c == "(" and last_c != ":") or (c in {"<", "[", "{", "|"}):
             # Begin group/tag/alt/etc.
 
             # Break literal here

@@ -570,16 +570,30 @@ class MiscellaneousTestCase(unittest.TestCase):
         play me ($music_genre)
         """
 
-        replacements = {"$music_genre": [Sentence.parse("(hard rock):(Hard Rock)")]}
+        replacements = {
+            "$music_genre": [
+                Sentence.parse("(rock | hard rock):(Hard Rock)"),
+                Sentence.parse("classical:(Classical Music)"),
+            ]
+        }
         graph = intents_to_graph(parse_ini(ini_text), replacements)
 
-        recognitions = zero_times(recognize("play me hard rock", graph, fuzzy=False))
+        for text in ["play me rock", "play me hard rock"]:
+            recognitions = zero_times(recognize(text, graph, fuzzy=False))
+            self.assertEqual(len(recognitions), 1)
+            recognition = recognitions[0]
+            self.assertIsNotNone(recognition.intent)
+
+            # Check sequence substitution
+            self.assertEqual(recognition.text, "play me Hard Rock")
+
+        recognitions = zero_times(recognize("play me classical", graph, fuzzy=False))
         self.assertEqual(len(recognitions), 1)
         recognition = recognitions[0]
         self.assertIsNotNone(recognition.intent)
 
         # Check sequence substitution
-        self.assertEqual(recognition.text, "play me Hard Rock")
+        self.assertEqual(recognition.text, "play me Classical Music")
 
 
 # -----------------------------------------------------------------------------
