@@ -563,6 +563,24 @@ class MiscellaneousTestCase(unittest.TestCase):
             ],
         )
 
+    def test_slot_sequence_replacement(self):
+        """Ensure word sequences in slots can be replaced."""
+        ini_text = """
+        [PlayMusic]
+        play me ($music_genre)
+        """
+
+        replacements = {"$music_genre": [Sentence.parse("(hard rock):(Hard Rock)")]}
+        graph = intents_to_graph(parse_ini(ini_text), replacements)
+
+        recognitions = zero_times(recognize("play me hard rock", graph, fuzzy=False))
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        # Check sequence substitution
+        self.assertEqual(recognition.text, "play me Hard Rock")
+
 
 # -----------------------------------------------------------------------------
 

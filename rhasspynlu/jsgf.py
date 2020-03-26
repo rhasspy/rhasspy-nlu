@@ -10,10 +10,26 @@ class Substitutable:
     """Indicates an expression may be replaced with some text."""
 
     # Replacement text
-    substitution: typing.Optional[str] = None
+    substitution: typing.Optional[typing.Union[str, typing.List[str]]] = None
 
     # Names of converters to apply after substitution
     converters: typing.List[str] = field(default_factory=list)
+
+    @classmethod
+    def parse_substitution(cls, sub_text: str) -> typing.Union[str, typing.List[str]]:
+        """Parse substitution text into token list or string."""
+        sub_text = sub_text.strip()
+
+        if sub_text.startswith("("):
+            sub_text = sub_text[1:]
+
+        if sub_text.endswith(")"):
+            sub_text = sub_text[:-1]
+
+        if " " in sub_text:
+            return sub_text.split()
+
+        return sub_text
 
 
 @dataclass
@@ -194,7 +210,11 @@ def split_words(text: str) -> typing.Iterable[Expression]:
             if ":" in token:
                 # Slot with substitutions
                 lhs, rhs = token[1:].split(":", maxsplit=1)
-                yield SlotReference(text=token, slot_name=lhs, substitution=rhs)
+                yield SlotReference(
+                    text=token,
+                    slot_name=lhs,
+                    substitution=Substitutable.parse_substitution(rhs),
+                )
             else:
                 # Slot without substitutions
                 yield SlotReference(text=token, slot_name=token[1:])
@@ -213,7 +233,7 @@ def split_words(text: str) -> typing.Iterable[Expression]:
                 # e.g., twenty:20
                 lhs, rhs = word.text.split(":", maxsplit=1)
                 word.text = lhs
-                word.substitution = rhs
+                word.substitution = Substitutable.parse_substitution(rhs)
 
             yield word
         else:
@@ -274,8 +294,19 @@ def parse_expression(
             # Handle sequence substitution/conversion
             assert isinstance(last_taggable, Substitutable)
 
+            # Check for substitution sequence.
+            # e.g., (input words):(output words)
+            if text[next_index] == "(":
+                # Find end of group
+                next_end = [")"] + end
+                is_seq_sub = True
+            else:
+                # Find end of word
+                next_end = [" "] + end
+                is_seq_sub = False
+
             next_index = parse_expression(
-                None, text[current_index + 1 :], end=[" "] + end, is_literal=False
+                None, text[current_index + 1 :], next_end, is_literal=False
             )
 
             if next_index is None:
@@ -284,15 +315,21 @@ def parse_expression(
             else:
                 next_index += current_index - 1
 
+            if is_seq_sub:
+                # Consume end paren
+                next_index += 1
+                assert text[next_index - 1] == ")", "Missing end parenthesis"
+
             if c == ":":
-                # Substition/conversion
+                # Substitution/conversion
                 sub_text = text[current_index + 1 : next_index].strip()
+
                 if "!" in sub_text:
                     # Extract converter(s)
                     sub_text, *converters = sub_text.split("!")
                     last_taggable.converters = converters
 
-                last_taggable.substitution = sub_text
+                last_taggable.substitution = Substitutable.parse_substitution(sub_text)
             else:
                 # Conversion only
                 conv_text = text[current_index + 1 : next_index].strip()
@@ -338,18 +375,22 @@ def parse_expression(
                 last_taggable = rule
             elif c == "(":
                 # Group (expression)
-                assert last_group is not None
-                group = Sequence(type=SequenceType.GROUP)
-                end_index = parse_expression(
-                    group, text[current_index + 1 :], end=[")"]
-                )
-                assert end_index
-                next_index = end_index + current_index
+                if last_group is not None:
+                    # Parse group into sequence.
+                    # If last_group is None, we're on the right-hand side of a
+                    # ":" and the text will be interpreted as a substitution
+                    # instead.
+                    group = Sequence(type=SequenceType.GROUP)
+                    end_index = parse_expression(
+                        group, text[current_index + 1 :], end=[")"]
+                    )
+                    assert end_index
+                    next_index = end_index + current_index
 
-                group = unwrap_sequence(group)
-                group.text = text[current_index + 1 : next_index - 1]
-                last_group.items.append(group)
-                last_taggable = group
+                    group = unwrap_sequence(group)
+                    group.text = text[current_index + 1 : next_index - 1]
+                    last_group.items.append(group)
+                    last_taggable = group
             elif c == "[":
                 # Optional
                 # Recurse with group sequence to capture multi-word children.
@@ -369,24 +410,19 @@ def parse_expression(
                         and (not optional_seq.substitution)
                     ):
                         # Unpack inner item
-                        # pylint: disable=E1136
                         inner_item = optional_seq.items[0]
 
-                        # pylint: disable=E1101
                         optional.items.append(inner_item)
                     elif optional_seq.type == SequenceType.ALTERNATIVE:
                         # Unwrap inner alternative
-                        # pylint: disable=E1101
                         optional.items.extend(optional_seq.items)
                     else:
                         # Keep inner group
                         optional_seq.text = text[current_index + 1 : next_index - 1]
 
-                        # pylint: disable=E1101
                         optional.items.append(optional_seq)
 
                 # Empty alternative
-                # pylint: disable=E1101
                 optional.items.append(Word(text=""))
                 optional.text = text[current_index + 1 : next_index - 1]
 
@@ -421,7 +457,7 @@ def parse_expression(
                         # e.g., twenty:20
                         lhs, rhs = tag.tag_text.split(":", maxsplit=1)
                         tag.tag_text = lhs
-                        tag.substitution = rhs
+                        tag.substitution = Substitutable.parse_substitution(rhs)
 
                 last_taggable.tag = tag
             elif c == "|":
@@ -431,12 +467,10 @@ def parse_expression(
                     alternative = Sequence(type=SequenceType.ALTERNATIVE)
                     if len(root.items) == 1:
                         # Add directly
-                        # pylint: disable=E1101
                         alternative.items.append(root.items[0])
                     else:
                         # Wrap in group
                         last_group = Sequence(type=SequenceType.GROUP, items=root.items)
-                        # pylint: disable=E1101
                         alternative.items.append(last_group)
 
                     # Modify original sequence
@@ -453,7 +487,6 @@ def parse_expression(
                 # Create new group for any follow-on expressions
                 last_group = Sequence(type=SequenceType.GROUP)
 
-                # pylint: disable=E1101
                 alternative.items.append(last_group)
         else:
             # Accumulate into current literal

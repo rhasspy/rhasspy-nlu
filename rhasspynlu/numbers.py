@@ -92,7 +92,7 @@ def number_transform(word: Expression, language: typing.Optional[str] = None):
         if len(number_words) == 1:
             # Easy case, single word
             word.text = number_words[0]
-            word.substitution = str(n)
+            word.substitution = [str(n)]
             word.converters = ["int"]
             return word
 
@@ -101,7 +101,7 @@ def number_transform(word: Expression, language: typing.Optional[str] = None):
         return Sequence(
             text=number_text,
             type=SequenceType.GROUP,
-            substitution=str(n),
+            substitution=[str(n)],
             converters=["int"],
             items=[Word(w) for w in number_words],
         )

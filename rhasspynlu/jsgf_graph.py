@@ -121,17 +121,33 @@ def expression_to_graph(
         word: Word = expression
         next_state = len(graph)
         graph.add_node(next_state, word=word.text)
-        ilabel = word.text
-        olabel = word.text if (word.substitution is None) else word.substitution
 
-        if empty_substitution:
-            olabel = ""
+        if (word.substitution is None) and (not empty_substitution):
+            # Single word input/output
+            graph.add_edge(
+                source_state,
+                next_state,
+                ilabel=word.text,
+                olabel=word.text,
+                label=word.text,
+            )
+            source_state = next_state
+        else:
+            # Loading edge
+            graph.add_edge(
+                source_state,
+                next_state,
+                ilabel=word.text,
+                olabel="",
+                label=f"{word.text}:",
+            )
 
-        label = f"{ilabel}:{olabel}"
-        graph.add_edge(
-            source_state, next_state, ilabel=ilabel, olabel=olabel, label=label
-        )
-        source_state = next_state
+            source_state = next_state
+
+            # Add word output(s)
+            olabels = [word.text] if (word.substitution is None) else word.substitution
+            if not empty_substitution:
+                source_state = add_substitution(graph, olabels, source_state)
     elif isinstance(expression, RuleReference):
         # Reference to a local or remote rule
         rule_ref: RuleReference = expression
@@ -191,12 +207,8 @@ def expression_to_graph(
 
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
-        # Output substituted word
-        next_state = len(graph)
-        olabel = expression.substitution
-        label = f":{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
-        source_state = next_state
+        # Output substituted word(s)
+        source_state = add_substitution(graph, expression.substitution, source_state)
 
     # Handle converters end
     end_converters: typing.List[str] = []
@@ -218,14 +230,10 @@ def expression_to_graph(
     if isinstance(expression, Taggable) and expression.tag:
         # Handle tag substitution
         if expression.tag.substitution:
-            # Output substituted word
-            next_state = len(graph)
-            olabel = expression.tag.substitution
-            label = f":{olabel}"
-            graph.add_edge(
-                source_state, next_state, ilabel="", olabel=olabel, label=label
+            # Output substituted word(s)
+            source_state = add_substitution(
+                graph, expression.tag.substitution, source_state
             )
-            source_state = next_state
 
         # End tag
         next_state = len(graph)
@@ -233,6 +241,26 @@ def expression_to_graph(
         olabel = f"__end__{tag}"
         label = f":{olabel}"
         graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        source_state = next_state
+
+    return source_state
+
+
+def add_substitution(
+    graph: nx.DiGraph,
+    substitution: typing.Union[str, typing.List[str]],
+    source_state: int,
+) -> int:
+    """Add substitution token sequence to graph."""
+    if isinstance(substitution, str):
+        substitution = [substitution]
+
+    for olabel in substitution:
+        next_state = len(graph)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=olabel, label=f":{olabel}"
+        )
+
         source_state = next_state
 
     return source_state
