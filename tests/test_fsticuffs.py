@@ -25,11 +25,12 @@ class StrictTestCase(unittest.TestCase):
 
         # Exact
         recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
+        print(recognitions)
         self.assertEqual(
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=1),
+                    intent=Intent(name="TestIntent", confidence=1.0),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -65,7 +66,7 @@ class StrictTestCase(unittest.TestCase):
         self.assertEqual(len(recognitions), 2)
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent1", confidence=1),
+                intent=Intent(name="TestIntent1", confidence=1.0),
                 text="this is a test",
                 raw_text="this is a test",
                 tokens=["this", "is", "a", "test"],
@@ -75,7 +76,7 @@ class StrictTestCase(unittest.TestCase):
         )
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent2", confidence=1),
+                intent=Intent(name="TestIntent2", confidence=1.0),
                 text="this is a test",
                 raw_text="this is a test",
                 tokens=["this", "is", "a", "test"],
@@ -107,7 +108,7 @@ class StrictTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=1),
+                    intent=Intent(name="TestIntent", confidence=1.0),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -140,7 +141,7 @@ class StrictTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=1),
+                    intent=Intent(name="TestIntent", confidence=1.0),
                     text="this is a TEST 100",
                     raw_text="this is a test ten",
                     tokens=["this", "is", "a", "TEST", 100],
@@ -177,7 +178,7 @@ class StrictTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=1),
+                    intent=Intent(name="TestIntent", confidence=1.0),
                     text="this is a test 1000",
                     raw_text="this is a test ten",
                     tokens=["this", "is", "a", "test", 1000],
@@ -210,7 +211,7 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=1),
+                    intent=Intent(name="TestIntent", confidence=1.0),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -225,7 +226,7 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=(1 - 1 / 4)),
+                    intent=Intent(name="TestIntent", confidence=float(1 - 1 / 4)),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -257,7 +258,7 @@ class FuzzyTestCase(unittest.TestCase):
         self.assertEqual(len(recognitions), 2)
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent1", confidence=1),
+                intent=Intent(name="TestIntent1", confidence=1.0),
                 text="this is a test",
                 raw_text="this is a test",
                 tokens=["this", "is", "a", "test"],
@@ -267,7 +268,7 @@ class FuzzyTestCase(unittest.TestCase):
         )
         self.assertIn(
             Recognition(
-                intent=Intent(name="TestIntent2", confidence=1),
+                intent=Intent(name="TestIntent2", confidence=1.0),
                 text="this is a test",
                 raw_text="this is a test",
                 tokens=["this", "is", "a", "test"],
@@ -301,7 +302,7 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent1", confidence=1),
+                    intent=Intent(name="TestIntent1", confidence=1.0),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -334,7 +335,7 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=(1 - (0.1 / 4))),
+                    intent=Intent(name="TestIntent", confidence=float(1 - (0.1 / 4))),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -365,14 +366,14 @@ class FuzzyTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="Intent1", confidence=1),
+                    intent=Intent(name="Intent1", confidence=1.0),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
                     raw_tokens=["this", "is", "a", "test"],
                 ),
                 Recognition(
-                    intent=Intent(name="Intent2", confidence=1),
+                    intent=Intent(name="Intent2", confidence=1.0),
                     text="this is a test",
                     raw_text="this is a test",
                     tokens=["this", "is", "a", "test"],
@@ -554,7 +555,7 @@ class MiscellaneousTestCase(unittest.TestCase):
             recognitions,
             [
                 Recognition(
-                    intent=Intent(name="TestIntent", confidence=1),
+                    intent=Intent(name="TestIntent", confidence=1.0),
                     text="this IS A TEST",
                     raw_text="this is a test",
                     tokens=["this", "IS", "A", "TEST"],
@@ -594,6 +595,32 @@ class MiscellaneousTestCase(unittest.TestCase):
 
         # Check sequence substitution
         self.assertEqual(recognition.text, "play me Classical Music")
+
+    def test_case_preservation(self):
+        """Ensure word casing is preserved in raw text."""
+        ini_text = """
+        [TestIntent]
+        this is a (test){foo}
+        """
+
+        graph = intents_to_graph(parse_ini(ini_text))
+
+        recognitions = zero_times(
+            recognize("this is a TEST", graph, fuzzy=False, word_transform=str.lower)
+        )
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        # Check sequence substitution
+        self.assertEqual(recognition.text, "this is a test")
+        self.assertEqual(recognition.raw_text, "this is a TEST")
+
+        self.assertEqual(len(recognition.entities), 1)
+        foo = recognition.entities[0]
+        self.assertEqual(foo.entity, "foo")
+        self.assertEqual(foo.value, "test")
+        self.assertEqual(foo.raw_value, "TEST")
 
 
 # -----------------------------------------------------------------------------

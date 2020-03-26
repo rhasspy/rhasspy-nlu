@@ -14,6 +14,9 @@ from .utils import pairwise
 
 # -----------------------------------------------------------------------------
 
+PathNodeType = typing.Union[int, typing.Tuple[int, typing.List[str]]]
+PathType = typing.List[PathNodeType]
+
 
 def recognize(
     tokens: typing.Union[str, typing.List[str]],
@@ -122,7 +125,7 @@ def paths_strict(
     max_paths: typing.Optional[int] = None,
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
     word_transform: typing.Optional[typing.Callable[[str], str]] = None,
-) -> typing.Iterable[typing.List[int]]:
+) -> typing.Iterable[PathType]:
     """Match a single path from the graph exactly if possible."""
     if not tokens:
         return []
@@ -140,8 +143,12 @@ def paths_strict(
     # Number of matching paths found
     paths_found: int = 0
 
-    # Do breadth-first search
-    node_queue: typing.List[typing.Tuple[int, typing.List[int], typing.List[str]]] = [
+    # Do breadth-first search.
+    # Queue contains items of the form:
+    # * current node (int)
+    # * current path (int, str?) - node, matching input token
+    # * remaining input tokens
+    node_queue: typing.List[typing.Tuple[int, PathType, typing.List[str]]] = [
         (start_node, [], tokens)
     ]
 
@@ -162,6 +169,7 @@ def paths_strict(
 
             ilabel = edge_data.get("ilabel", "")
             olabel = edge_data.get("olabel", "")
+            matching_tokens: typing.List[str] = []
 
             if olabel.startswith("__label__"):
                 intent_name = olabel[9:]
@@ -180,12 +188,13 @@ def paths_strict(
                             continue
                     else:
                         # Token match
-                        next_tokens.pop(0)
+                        matching_token = next_tokens.pop(0)
+                        matching_tokens.append(matching_token)
                 else:
                     # Ran out of tokens
                     continue
 
-            next_path.append(current_node)
+            next_path.append((current_node, matching_tokens))
 
             # Continue search
             node_queue.append((next_node, next_path, next_tokens))
@@ -202,7 +211,7 @@ class FuzzyResult:
     """Single path for fuzzy recognition."""
 
     intent_name: str
-    node_path: typing.Iterable[int]
+    node_path: PathType
     cost: float
 
 
@@ -222,6 +231,7 @@ class FuzzyCostOutput:
 
     cost: float
     continue_search: bool = True
+    matching_tokens: typing.List[str] = field(default_factory=list)
 
 
 def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
@@ -231,6 +241,7 @@ def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
     tokens = cost_input.tokens
     stop_words = cost_input.stop_words
     word_transform = cost_input.word_transform or (lambda x: x)
+    matching_tokens: typing.List[str] = []
 
     if ilabel:
         ilabel = word_transform(ilabel)
@@ -245,12 +256,13 @@ def default_fuzzy_cost(cost_input: FuzzyCostInput) -> FuzzyCostOutput:
 
         if tokens and (ilabel == word_transform(tokens[0])):
             # Consume matching token
-            tokens.pop(0)
+            matching_token = tokens.pop(0)
+            matching_tokens.append(matching_token)
         else:
             # No matching token
             return FuzzyCostOutput(cost=cost, continue_search=False)
 
-    return FuzzyCostOutput(cost=cost)
+    return FuzzyCostOutput(cost=cost, matching_tokens=matching_tokens)
 
 
 def paths_fuzzy(
@@ -285,11 +297,9 @@ def paths_fuzzy(
     # Lowest cost so far
     best_cost: float = float(len(n_data))
 
-    # (node, in_tokens, out_nodes, out_count, cost, intent_name)
+    # (node, in_tokens, out_path, out_count, cost, intent_name)
     node_queue: typing.List[
-        typing.Tuple[
-            int, typing.List[str], typing.List[int], int, float, typing.Optional[str]
-        ]
+        typing.Tuple[int, typing.List[str], PathType, int, float, typing.Optional[str]]
     ] = [(start_node, tokens, [], 0, 0.0, None)]
 
     # BFS it up
@@ -297,7 +307,7 @@ def paths_fuzzy(
         (
             q_node,
             q_in_tokens,
-            q_out_nodes,
+            q_out_path,
             q_out_count,
             q_cost,
             q_intent,
@@ -314,7 +324,7 @@ def paths_fuzzy(
                 best_intent_cost = best_intent_costs[0].cost
 
             final_cost = q_cost + len(q_in_tokens)  # remaning tokens count against
-            final_path = tuple(q_out_nodes)
+            final_path = q_out_path
 
             if (best_intent_cost is None) or (final_cost < best_intent_cost):
                 # Overwrite best cost
@@ -346,7 +356,7 @@ def paths_fuzzy(
             in_label = edge_data.get("ilabel") or ""
             out_label = edge_data.get("olabel") or ""
             next_in_tokens = list(q_in_tokens)
-            next_out_nodes = list(q_out_nodes)
+            next_out_path = list(q_out_path)
             next_out_count = q_out_count
             next_cost = q_cost
             next_intent = q_intent
@@ -375,13 +385,13 @@ def paths_fuzzy(
                 continue
 
             # Extend current path
-            next_out_nodes.append(q_node)
+            next_out_path.append((q_node, cost_output.matching_tokens))
 
             node_queue.append(
                 (
                     next_node,
                     next_in_tokens,
-                    next_out_nodes,
+                    next_out_path,
                     next_out_count,
                     next_cost,
                     next_intent,
@@ -438,11 +448,13 @@ class ConverterInfo:
     args: typing.Optional[typing.List[str]] = None
 
     # List of raw/substituted tokens
-    tokens: typing.List[typing.Tuple[str, str]] = field(default_factory=list)
+    tokens: typing.List[typing.Tuple[str, str, typing.List[str]]] = field(
+        default_factory=list
+    )
 
 
 def path_to_recognition(
-    node_path: typing.Iterable[int],
+    node_path: typing.Iterable[PathNodeType],
     graph: nx.DiGraph,
     cost: typing.Optional[float] = None,
     converters: typing.Optional[
@@ -466,9 +478,21 @@ def path_to_recognition(
     recognition = Recognition(intent=Intent("", confidence=1.0))
 
     # Step 1: go through path pairwise and gather input/output labels
-    raw_sub_tokens: typing.List[typing.Tuple[str, str]] = []
+    raw_sub_tokens: typing.List[typing.Tuple[str, str, typing.List[str]]] = []
 
-    for last_node, next_node in pairwise(node_path):
+    for last_node_tokens, next_node_tokens in pairwise(node_path):
+        # Unpack path nodes
+        if isinstance(last_node_tokens, int):
+            last_node = last_node_tokens
+            last_tokens = []
+        else:
+            last_node, last_tokens = last_node_tokens
+
+        if isinstance(next_node_tokens, int):
+            next_node = next_node_tokens
+        else:
+            next_node, _ = next_node_tokens
+
         # Get raw text
         word = node_attrs[next_node].get("word") or ""
 
@@ -479,20 +503,19 @@ def path_to_recognition(
         if olabel.startswith("__label__"):
             # Intent name
             assert recognition.intent is not None
-            # pylint: disable=E0237
             recognition.intent.name = olabel[9:]
         elif word or olabel:
             # Keep non-empty words
-            raw_sub_tokens.append((word, olabel))
+            raw_sub_tokens.append((word, olabel, last_tokens))
 
     # Step 2: apply converters
     converter_stack: typing.List[ConverterInfo] = []
-    raw_conv_tokens: typing.List[typing.Tuple[str, typing.Any]] = []
+    raw_conv_tokens: typing.List[typing.Tuple[str, typing.Any, typing.List[str]]] = []
 
-    for raw_token, sub_token in raw_sub_tokens:
+    for raw_token, sub_token, original_tokens in raw_sub_tokens:
         if sub_token and converter_stack and (not sub_token.startswith("__")):
             # Add to existing converter
-            converter_stack[-1].tokens.append((raw_token, sub_token))
+            converter_stack[-1].tokens.append((raw_token, sub_token, original_tokens))
         elif sub_token.startswith("__convert__"):
             # Begin converter
             converter_key = sub_token[11:]
@@ -518,8 +541,19 @@ def path_to_recognition(
             ), f"Mismatched converter name (expected {last_converter.key}, got {actual_key})"
 
             # Convert and add directly
-            raw_tokens = [t[0] for t in last_converter.tokens if t[0]]
-            sub_tokens = [t[1] for t in last_converter.tokens if t[1]]
+            raw_tokens: typing.List[str] = []
+            sub_tokens: typing.List[str] = []
+            orig_tokens: typing.List[typing.List[str]] = []
+
+            for t in last_converter.tokens:
+                if t[0]:
+                    raw_tokens.append(t[0])
+
+                if t[1]:
+                    sub_tokens.append(t[1])
+
+                if t[2]:
+                    orig_tokens.append(t[2])
 
             # Run substituted tokens through conversion function
             converter_func = converters[last_converter.name]
@@ -539,10 +573,12 @@ def path_to_recognition(
 
             # Zip 'em up
             target_list.extend(
-                itertools.zip_longest(raw_tokens, converted_tokens, fillvalue="")
+                itertools.zip_longest(
+                    raw_tokens, converted_tokens, orig_tokens, fillvalue=""
+                )
             )
         else:
-            raw_conv_tokens.append((raw_token, sub_token))
+            raw_conv_tokens.append((raw_token, sub_token, original_tokens))
 
     assert not converter_stack, f"Converter(s) remaining on stack ({converter_stack})"
 
@@ -551,10 +587,18 @@ def path_to_recognition(
     raw_index = 0
     sub_index = 0
 
-    for raw_token, conv_token in raw_conv_tokens:
+    for raw_token, conv_token, original_tokens in raw_conv_tokens:
         # Handle raw (input) token
-        if raw_token:
-            # pylint: disable=E1101
+        if original_tokens:
+            # Use tokens from recognition string
+            recognition.raw_tokens.extend(original_tokens)
+            raw_index += sum(len(t) for t in original_tokens) + len(original_tokens)
+
+            if entity_stack:
+                last_entity = entity_stack[-1]
+                last_entity.raw_tokens.extend(original_tokens)
+        elif raw_token:
+            # Use word itself
             recognition.raw_tokens.append(raw_token)
             raw_index += len(raw_token) + 1
 
@@ -600,33 +644,28 @@ def path_to_recognition(
                 last_entity.raw_value = " ".join(last_entity.raw_tokens)
 
                 # Add to recognition
-                # pylint: disable=E1101
                 recognition.entities.append(last_entity)
             elif entity_stack:
                 # Add to most recent named entity
                 last_entity = entity_stack[-1]
                 last_entity.tokens.append(conv_token)
 
-                # pylint: disable=E1101
                 recognition.tokens.append(conv_token)
                 sub_index += len(conv_token_str) + 1
             else:
                 # Substituted text
-                recognition.tokens.append(conv_token)  # pylint: disable=E1101
+                recognition.tokens.append(conv_token)
                 sub_index += len(conv_token_str) + 1
 
     # Step 4: create text fields and compute confidence
-    recognition.text = " ".join(
-        str(t) for t in recognition.tokens  # pylint: disable=E1133
-    )
+    recognition.text = " ".join(str(t) for t in recognition.tokens)
     recognition.raw_text = " ".join(recognition.raw_tokens)
 
     if cost and cost > 0:
         # Set fuzzy confidence
         assert recognition.intent is not None
 
-        # pylint: disable=E0237
-        recognition.intent.confidence = 1 - (cost / len(recognition.raw_tokens))
+        recognition.intent.confidence = 1.0 - float(cost / len(recognition.raw_tokens))
 
     return RecognitionResult.SUCCESS, recognition
 
