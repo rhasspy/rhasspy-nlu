@@ -32,7 +32,7 @@ def get_intent_ngram_counts(
         # __label__INTENT
         edge_data = graph.edges[(start_node, intent_node)]
         olabel = edge_data["olabel"]
-        assert olabel.startswith("__label__"), "Not an intent graph"
+        assert olabel[:9] == "__label__", "Not an intent graph"
         intent_name = olabel[9:]
         sentence_counts[intent_name] = edge_data.get("sentence_count", 1)
 

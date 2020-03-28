@@ -15,15 +15,15 @@ class Substitutable:
     # Names of converters to apply after substitution
     converters: typing.List[str] = field(default_factory=list)
 
-    @classmethod
-    def parse_substitution(cls, sub_text: str) -> typing.Union[str, typing.List[str]]:
+    @staticmethod
+    def parse_substitution(sub_text: str) -> typing.Union[str, typing.List[str]]:
         """Parse substitution text into token list or string."""
         sub_text = sub_text.strip()
 
-        if sub_text.startswith("("):
+        if sub_text[:1] == "(":
             sub_text = sub_text[1:]
 
-        if sub_text.endswith(")"):
+        if sub_text[-1:] == ")":
             sub_text = sub_text[:-1]
 
         if " " in sub_text:
@@ -240,21 +240,23 @@ def split_words(text: str) -> typing.Iterable[Expression]:
         tokens.append(token)
 
     for token in tokens:
-        if token.startswith("$"):
-            if ":" in token:
+        if token[:1] == "$":
+            slot_name = token[1:]
+            if ":" in slot_name:
                 # Slot with substitutions
-                lhs, rhs = token[1:].split(":", maxsplit=1)
+                slot_name, substitution = slot_name.split(":", maxsplit=1)
                 yield SlotReference(
                     text=token,
-                    slot_name=lhs,
-                    substitution=Substitutable.parse_substitution(rhs),
+                    slot_name=slot_name,
+                    substitution=Substitutable.parse_substitution(substitution),
                 )
             else:
                 # Slot without substitutions
-                yield SlotReference(text=token, slot_name=token[1:])
-        elif ":" in token or "!" in token:
-            word = Word(text=token)
+                yield SlotReference(text=token, slot_name=slot_name)
 
+        word = Word(text=token)
+
+        if ":" in token or "!" in token:
             if "!" in token:
                 # Word with converter(s)
                 # e.g., twenty:20!int
@@ -272,7 +274,7 @@ def split_words(text: str) -> typing.Iterable[Expression]:
             yield word
         else:
             # With without substitution
-            yield Word(text=token)
+            yield word
 
 
 def unwrap_sequence(seq: Sequence) -> Sequence:
@@ -478,20 +480,19 @@ def parse_expression(
                 tag.tag_text = text[current_index + 1 : next_index - 1]
 
                 # Handle substitution/converter(s)
-                if ":" in tag.tag_text or "!" in tag.tag_text:
-                    if "!" in tag.tag_text:
-                        # Word with converter(s)
-                        # e.g., twenty:20!int
-                        parts = tag.tag_text.split("!")
-                        tag.tag_text = parts[0]
-                        tag.converters = parts[1:]
+                if "!" in tag.tag_text:
+                    # Word with converter(s)
+                    # e.g., twenty:20!int
+                    parts = tag.tag_text.split("!")
+                    tag.tag_text = parts[0]
+                    tag.converters = parts[1:]
 
-                    if ":" in tag.tag_text:
-                        # Word with substitution
-                        # e.g., twenty:20
-                        lhs, rhs = tag.tag_text.split(":", maxsplit=1)
-                        tag.tag_text = lhs
-                        tag.substitution = Substitutable.parse_substitution(rhs)
+                if ":" in tag.tag_text:
+                    # Word with substitution
+                    # e.g., twenty:20
+                    lhs, rhs = tag.tag_text.split(":", maxsplit=1)
+                    tag.tag_text = lhs
+                    tag.substitution = Substitutable.parse_substitution(rhs)
 
                 last_taggable.tag = tag
             elif c == "|":
