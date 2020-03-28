@@ -15,22 +15,6 @@ class Substitutable:
     # Names of converters to apply after substitution
     converters: typing.List[str] = field(default_factory=list)
 
-    @classmethod
-    def parse_substitution(cls, sub_text: str) -> typing.Union[str, typing.List[str]]:
-        """Parse substitution text into token list or string."""
-        sub_text = sub_text.strip()
-
-        if sub_text.startswith("("):
-            sub_text = sub_text[1:]
-
-        if sub_text.endswith(")"):
-            sub_text = sub_text[:-1]
-
-        if " " in sub_text:
-            return sub_text.split()
-
-        return sub_text
-
 
 @dataclass
 class Tag(Substitutable):
@@ -149,6 +133,21 @@ class Rule:
 
 # -----------------------------------------------------------------------------
 
+def parse_substitution(sub_text: str) -> typing.Union[str, typing.List[str]]:
+    """Parse substitution text into token list or string."""
+    sub_text = sub_text.strip()
+
+    if sub_text[:1] == "(":
+        sub_text = sub_text[1:]
+
+    if sub_text[-1:] == ")":
+        sub_text = sub_text[:-1]
+
+    if " " in sub_text:
+        return sub_text.split()
+
+    return sub_text
+
 
 def walk_expression(
     expression: Expression,
@@ -240,39 +239,37 @@ def split_words(text: str) -> typing.Iterable[Expression]:
         tokens.append(token)
 
     for token in tokens:
-        if token.startswith("$"):
+        if token[:1] == "$":
             if ":" in token:
                 # Slot with substitutions
                 lhs, rhs = token[1:].split(":", maxsplit=1)
                 yield SlotReference(
                     text=token,
                     slot_name=lhs,
-                    substitution=Substitutable.parse_substitution(rhs),
+                    substitution=parse_substitution(rhs),
                 )
             else:
                 # Slot without substitutions
                 yield SlotReference(text=token, slot_name=token[1:])
-        elif ":" in token or "!" in token:
-            word = Word(text=token)
 
-            if "!" in token:
-                # Word with converter(s)
-                # e.g., twenty:20!int
-                parts = token.split("!")
-                word.text = parts[0]
-                word.converters = parts[1:]
 
-            if ":" in word.text:
-                # Word with substitution
-                # e.g., twenty:20
-                lhs, rhs = word.text.split(":", maxsplit=1)
-                word.text = lhs
-                word.substitution = Substitutable.parse_substitution(rhs)
+        word = Word(text=token)
 
-            yield word
-        else:
-            # With without substitution
-            yield Word(text=token)
+        if "!" in token:
+            # Word with converter(s)
+            # e.g., twenty:20!int
+            parts = token.split("!")
+            word.text = parts[0]
+            word.converters = parts[1:]
+
+        if ":" in word.text:
+            # Word with substitution
+            # e.g., twenty:20
+            lhs, rhs = word.text.split(":", maxsplit=1)
+            word.text = lhs
+            word.substitution = parse_substitution(rhs)
+
+        yield word
 
 
 def unwrap_sequence(seq: Sequence) -> Sequence:
@@ -306,15 +303,11 @@ def parse_expression(
     # Process text character-by-character
     for current_index, c in enumerate(text):
         if current_index < next_index:
-            # Skip ahread
-            current_index += 1
+            # Skip ahead
             continue
 
         # Get previous character
-        if current_index > 0:
-            last_c = text[current_index - 1]
-        else:
-            last_c = ""
+        last_c = text[current_index - 1] if current_index else ""
 
         next_index = current_index + 1
 
@@ -363,7 +356,7 @@ def parse_expression(
                     sub_text, *converters = sub_text.split("!")
                     last_taggable.converters = converters
 
-                last_taggable.substitution = Substitutable.parse_substitution(sub_text)
+                last_taggable.substitution = parse_substitution(sub_text)
             else:
                 # Conversion only
                 conv_text = text[current_index + 1 : next_index].strip()
@@ -478,20 +471,19 @@ def parse_expression(
                 tag.tag_text = text[current_index + 1 : next_index - 1]
 
                 # Handle substitution/converter(s)
-                if ":" in tag.tag_text or "!" in tag.tag_text:
-                    if "!" in tag.tag_text:
-                        # Word with converter(s)
-                        # e.g., twenty:20!int
-                        parts = tag.tag_text.split("!")
-                        tag.tag_text = parts[0]
-                        tag.converters = parts[1:]
+                if "!" in tag.tag_text:
+                    # Word with converter(s)
+                    # e.g., twenty:20!int
+                    parts = tag.tag_text.split("!")
+                    tag.tag_text = parts[0]
+                    tag.converters = parts[1:]
 
-                    if ":" in tag.tag_text:
-                        # Word with substitution
-                        # e.g., twenty:20
-                        lhs, rhs = tag.tag_text.split(":", maxsplit=1)
-                        tag.tag_text = lhs
-                        tag.substitution = Substitutable.parse_substitution(rhs)
+                if ":" in tag.tag_text:
+                    # Word with substitution
+                    # e.g., twenty:20
+                    lhs, rhs = tag.tag_text.split(":", maxsplit=1)
+                    tag.tag_text = lhs
+                    tag.substitution = parse_substitution(rhs)
 
                 last_taggable.tag = tag
             elif c == "|":

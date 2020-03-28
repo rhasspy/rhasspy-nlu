@@ -40,7 +40,7 @@ class Grammar:
         # Read line-by-line
         for line in source:
             line = line.strip()
-            if line.startswith("#") or (not line):
+            if line[:1] == "#" or (not line):
                 # Skip comments/blank lines
                 continue
 
