@@ -6,6 +6,8 @@ import typing
 from dataclasses import dataclass, field
 from enum import Enum
 
+from . import utils
+
 
 @dataclass
 class Entity:
@@ -24,7 +26,7 @@ class Entity:
     @classmethod
     def from_dict(cls, entity_dict: typing.Dict[str, typing.Any]) -> "Entity":
         """Create Entity from dictionary."""
-        return Entity(**entity_dict)
+        return Entity(**utils.only_fields(cls, entity_dict))
 
 
 @dataclass
@@ -37,7 +39,7 @@ class Intent:
     @classmethod
     def from_dict(cls, intent_dict: typing.Dict[str, typing.Any]) -> "Intent":
         """Create Intent from dictionary."""
-        return Intent(**intent_dict)
+        return Intent(**utils.only_fields(cls, intent_dict))
 
 
 @dataclass
@@ -53,7 +55,7 @@ class TagInfo:
     @classmethod
     def from_dict(cls, tag_dict: typing.Dict[str, typing.Any]) -> "TagInfo":
         """Create TagInfo from dictionary."""
-        return TagInfo(**tag_dict)
+        return TagInfo(**utils.only_fields(cls, tag_dict))
 
 
 class RecognitionResult(str, Enum):
@@ -93,14 +95,10 @@ class Recognition:
     def from_dict(cls, recognition_dict: typing.Dict[str, typing.Any]) -> "Recognition":
         """Create Recognition from dictionary."""
 
-        # Exclude unused fields from Rhasspy JSON format
-        for unused_field in ["intents", "wakewordId"]:
-            recognition_dict.pop(unused_field, None)
-
         intent_dict = recognition_dict.pop("intent", None)
         entity_dicts = recognition_dict.pop("entities", None)
         slots_dict = recognition_dict.pop("slots", None)
-        recognition = Recognition(**recognition_dict)
+        recognition = Recognition(**utils.only_fields(cls, recognition_dict))
 
         if intent_dict:
             recognition.intent = Intent.from_dict(intent_dict)
