@@ -600,7 +600,7 @@ class MiscellaneousTestCase(unittest.TestCase):
         """Ensure word casing is preserved in raw text."""
         ini_text = """
         [TestIntent]
-        this is a (test){foo}
+        this is a (test){value}
         """
 
         graph = intents_to_graph(parse_ini(ini_text))
@@ -617,16 +617,16 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(recognition.raw_text, "this is a TEST")
 
         self.assertEqual(len(recognition.entities), 1)
-        foo = recognition.entities[0]
-        self.assertEqual(foo.entity, "foo")
-        self.assertEqual(foo.value, "test")
-        self.assertEqual(foo.raw_value, "TEST")
+        value = recognition.entities[0]
+        self.assertEqual(value.entity, "value")
+        self.assertEqual(value.value, "test")
+        self.assertEqual(value.raw_value, "TEST")
 
     def test_slot_case_preservation(self):
         """Ensure word casing is preserved in raw text."""
         ini_text = """
         [TestIntent]
-        this is a ($test){foo}
+        this is a ($test){value}
         """
 
         replacements = {"$test": [Sentence.parse("Bar")]}
@@ -644,10 +644,10 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(recognition.raw_text, "this is a bar")
 
         self.assertEqual(len(recognition.entities), 1)
-        foo = recognition.entities[0]
-        self.assertEqual(foo.entity, "foo")
-        self.assertEqual(foo.value, "Bar")
-        self.assertEqual(foo.raw_value, "bar")
+        value = recognition.entities[0]
+        self.assertEqual(value.entity, "value")
+        self.assertEqual(value.value, "Bar")
+        self.assertEqual(value.raw_value, "bar")
 
 
 # -----------------------------------------------------------------------------
