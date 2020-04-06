@@ -1,10 +1,12 @@
 """Recognition functions for sentences using JSGF graphs."""
+import base64
 import itertools
 import random
 import time
 import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 
 import networkx as nx
 
@@ -500,6 +502,10 @@ def path_to_recognition(
         edge_data = graph[last_node][next_node]
         olabel = edge_data.get("olabel") or ""
 
+        if olabel.startswith("__unpack__"):
+            # Decode payload as base64-encoded bytestring
+            olabel = base64.decodebytes(olabel[10:].encode()).decode()
+
         if olabel.startswith("__label__"):
             # Intent name
             assert recognition.intent is not None
@@ -645,6 +651,10 @@ def path_to_recognition(
 
                 # Add to recognition
                 recognition.entities.append(last_entity)
+            elif conv_token_str.startswith("__source__"):
+                if entity_stack:
+                    last_entity = entity_stack[-1]
+                    last_entity.source = conv_token_str[10:]
             elif entity_stack:
                 # Add to most recent named entity
                 last_entity = entity_stack[-1]
@@ -681,6 +691,9 @@ def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any
         "bool": lambda *args: map(bool, args),
         "lower": lambda *args: map(str.lower, args),
         "upper": lambda *args: map(str.upper, args),
+        "datetime": lambda *args, converter_args=None: [
+            datetime.strptime(" ".join(str(a) for a in args), *converter_args)
+        ],
     }
 
 

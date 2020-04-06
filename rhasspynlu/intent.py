@@ -2,9 +2,12 @@
 Data structures for intent recognition.
 """
 import dataclasses
+import datetime
 import typing
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
+from numbers import Number
 
 from . import utils
 
@@ -14,14 +17,36 @@ class Entity:
     """Named entity from intent."""
 
     entity: str
-    value: str
+    value: typing.Any
     raw_value: str = ""
+    source: str = ""
     start: int = 0
     raw_start: int = 0
     end: int = 0
     raw_end: int = 0
     tokens: typing.List[typing.Any] = field(default_factory=list)
     raw_tokens: typing.List[str] = field(default_factory=list)
+
+    @property
+    def value_dict(self):
+        """Get dictionary representation of value."""
+        if isinstance(self.value, Mapping):
+            return self.value
+
+        kind = "Unknown"
+
+        if isinstance(self.value, Number):
+            kind = "Number"
+        elif isinstance(self.value, datetime.date):
+            kind = "Date"
+        elif isinstance(self.value, datetime.time):
+            kind = "Time"
+        elif isinstance(self.value, datetime.datetime):
+            kind = "Datetime"
+        elif isinstance(self.value, datetime.timedelta):
+            kind = "Duration"
+
+        return {"kind": kind, "value": self.value}
 
     @classmethod
     def from_dict(cls, entity_dict: typing.Dict[str, typing.Any]) -> "Entity":

@@ -1,4 +1,5 @@
 """Utilities to convert JSGF sentences to directed graphs."""
+import base64
 import gzip
 import io
 import math
@@ -21,6 +22,7 @@ from .jsgf import (
     Taggable,
     Word,
 )
+from .slots import split_slot_args
 
 # -----------------------------------------------------------------------------
 
@@ -50,7 +52,9 @@ def expression_to_graph(
         tag = expression.tag.tag_text
         olabel = f"__begin__{tag}"
         label = f":{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
         if expression.tag.substitution:
@@ -70,7 +74,9 @@ def expression_to_graph(
         next_state = len(graph)
         olabel = f"__convert__{converter_name}"
         label = f"!{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
     if isinstance(expression, Sequence):
@@ -167,8 +173,8 @@ def expression_to_graph(
             rule_name = rule_ref.rule_name
 
         # Surround with <>
-        rule_name = f"<{rule_name}>"
-        rule_replacements = replacements.get(rule_name)
+        rule_name_brackets = f"<{rule_name}>"
+        rule_replacements = replacements.get(rule_name_brackets)
         assert rule_replacements, f"Missing rule {rule_name}"
 
         rule_body = next(iter(rule_replacements))
@@ -183,6 +189,7 @@ def expression_to_graph(
             count_dict=count_dict,
             rule_grammar=rule_grammar,
         )
+
     elif isinstance(expression, SlotReference):
         # Reference to slot values
         slot_ref: SlotReference = expression
@@ -205,6 +212,15 @@ def expression_to_graph(
             rule_grammar=rule_grammar,
         )
 
+        # Emit __source__ with slot name (no arguments)
+        slot_name_noargs = split_slot_args(slot_ref.slot_name)[0]
+        next_state = len(graph)
+        olabel = f"__source__{slot_name_noargs}"
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=olabel, label=maybe_pack(olabel)
+        )
+        source_state = next_state
+
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
         # Output substituted word(s)
@@ -223,7 +239,9 @@ def expression_to_graph(
         next_state = len(graph)
         olabel = f"__converted__{converter_name}"
         label = f"!{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
     # Handle tag end
@@ -240,7 +258,9 @@ def expression_to_graph(
         tag = expression.tag.tag_text
         olabel = f"__end__{tag}"
         label = f":{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
     return source_state
@@ -258,12 +278,24 @@ def add_substitution(
     for olabel in substitution:
         next_state = len(graph)
         graph.add_edge(
-            source_state, next_state, ilabel="", olabel=olabel, label=f":{olabel}"
+            source_state,
+            next_state,
+            ilabel="",
+            olabel=maybe_pack(olabel),
+            label=f":{olabel}",
         )
 
         source_state = next_state
 
     return source_state
+
+
+def maybe_pack(olabel: str) -> str:
+    """Pack output label as base64 if it contains whitespace."""
+    if " " in olabel:
+        return "__unpack__" + base64.encodebytes(olabel.encode()).decode().strip()
+
+    return olabel
 
 
 # -----------------------------------------------------------------------------
@@ -556,6 +588,15 @@ def graph_to_fst(
             # Empty string indicates epsilon transition (eps)
             ilabel = edge_data.get("ilabel", "") or eps
             olabel = edge_data.get("olabel", "") or eps
+
+            # Check for whitespace
+            assert (
+                " " not in ilabel
+            ), f"Input symbol cannot contain whitespace: {ilabel}"
+
+            assert (
+                " " not in olabel
+            ), f"Output symbol cannot contain whitespace: {olabel}"
 
             # Map labels (symbols) to integers
             isymbol = symbols.get(ilabel, len(symbols))

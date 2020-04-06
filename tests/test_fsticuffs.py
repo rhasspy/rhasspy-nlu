@@ -568,7 +568,7 @@ class MiscellaneousTestCase(unittest.TestCase):
         """Ensure word sequences in slots can be replaced."""
         ini_text = """
         [PlayMusic]
-        play me ($music_genre)
+        play me ($music_genre){genre}
         """
 
         replacements = {
@@ -588,6 +588,11 @@ class MiscellaneousTestCase(unittest.TestCase):
             # Check sequence substitution
             self.assertEqual(recognition.text, "play me Hard Rock")
 
+            # Check entity source
+            self.assertEqual(len(recognition.entities), 1)
+            genre = recognition.entities[0]
+            self.assertEqual(genre.source, "music_genre")
+
         recognitions = zero_times(recognize("play me classical", graph, fuzzy=False))
         self.assertEqual(len(recognitions), 1)
         recognition = recognitions[0]
@@ -595,6 +600,11 @@ class MiscellaneousTestCase(unittest.TestCase):
 
         # Check sequence substitution
         self.assertEqual(recognition.text, "play me Classical Music")
+
+        # Check entity source
+        self.assertEqual(len(recognition.entities), 1)
+        genre = recognition.entities[0]
+        self.assertEqual(genre.source, "music_genre")
 
     def test_word_case_preservation(self):
         """Ensure word casing is preserved in raw text."""
@@ -648,6 +658,7 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(value.entity, "value")
         self.assertEqual(value.value, "Bar")
         self.assertEqual(value.raw_value, "bar")
+        self.assertEqual(value.source, "test")
 
 
 # -----------------------------------------------------------------------------
