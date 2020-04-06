@@ -691,6 +691,15 @@ def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any
         "bool": lambda *args: map(bool, args),
         "lower": lambda *args: map(str.lower, args),
         "upper": lambda *args: map(str.upper, args),
+        "object": lambda *args: [
+            {"value": args[0] if len(args) == 1 else " ".join(str(a) for a in args)}
+        ],
+        "kind": lambda *args, converter_args=None: [
+            {"kind": converter_args[0], **a} for a in args
+        ],
+        "unit": lambda *args, converter_args=None: [
+            {"unit": converter_args[0], **a} for a in args
+        ],
         "datetime": lambda *args, converter_args=None: [
             datetime.strptime(" ".join(str(a) for a in args), *converter_args)
         ],
