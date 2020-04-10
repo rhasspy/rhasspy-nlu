@@ -11,6 +11,7 @@ from pathlib import Path
 from .const import IntentsType, ReplacementsType, SentencesType
 from .jsgf import (
     Expression,
+    ParseMetadata,
     Rule,
     RuleReference,
     Sentence,
@@ -63,13 +64,18 @@ def parse_ini(
     source: typing.Union[str, Path, typing.TextIO],
     intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
     sentence_transform: typing.Callable[[str], str] = None,
+    file_name: typing.Optional[str] = None,
 ) -> IntentsType:
     """Parse multiple JSGF grammars from an ini file."""
     intent_filter = intent_filter or (lambda x: True)
     if isinstance(source, str):
         source = io.StringIO(source)
+        file_name = file_name or "<StringIO>"
     elif isinstance(source, Path):
         source = open(source, "r")
+        file_name = file_name or str(source)
+    else:
+        file_name = file_name or "<TextIO>"
 
     # Process configuration sections
     sentences: IntentsType = defaultdict(list)
@@ -87,11 +93,15 @@ def parse_ini(
         _LOGGER.debug("Loaded ini file")
 
         # Parse each section (intent)
+        line_number: int = 1
         for sec_name in config.sections():
             # Exclude if filtered out.
             if not intent_filter(sec_name):
                 _LOGGER.debug("Skipping %s", sec_name)
                 continue
+
+            # Section header
+            line_number += 1
 
             # Processs settings (sentences/rules)
             for k, v in config[sec_name].items():
@@ -106,7 +116,14 @@ def parse_ini(
                         # Do transform
                         sentence = sentence_transform(sentence)
 
-                    sentences[sec_name].append(Sentence.parse(sentence))
+                    sentences[sec_name].append(
+                        Sentence.parse(
+                            sentence,
+                            metadata=ParseMetadata(
+                                file_name=file_name, line_number=line_number
+                            ),
+                        )
+                    )
                 else:
                     sentence = v.strip()
 
@@ -120,7 +137,20 @@ def parse_ini(
                     # Fix \[ escape sequence
                     rule = rule.replace("\\[", "[")
 
-                    sentences[sec_name].append(Rule.parse(rule))
+                    sentences[sec_name].append(
+                        Rule.parse(
+                            rule,
+                            metadata=ParseMetadata(
+                                file_name=file_name, line_number=line_number
+                            ),
+                        )
+                    )
+
+                # Sentence
+                line_number += 1
+
+            # Blank line
+            line_number += 1
     finally:
         source.close()
 

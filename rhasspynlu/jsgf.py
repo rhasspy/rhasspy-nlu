@@ -102,14 +102,24 @@ class SlotReference(Substitutable, Taggable, Expression):
 
 
 @dataclass
+class ParseMetadata:
+    """Debug metadata for more helpful parsing errors."""
+
+    file_name: str
+    line_number: int
+
+
+@dataclass
 class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
     @classmethod
-    def parse(cls, text: str) -> "Sentence":
+    def parse(
+        cls, text: str, metadata: typing.Optional[ParseMetadata] = None
+    ) -> "Sentence":
         """Parse a single sentence."""
         s = Sentence(text=text)
-        parse_expression(s, text)
+        parse_expression(s, text, metadata=metadata)
         seq = unwrap_sequence(s)
         return Sentence(
             text=seq.text,
@@ -132,18 +142,20 @@ class Rule:
     text: str = ""
 
     @classmethod
-    def parse(cls, text: str) -> "Rule":
+    def parse(
+        cls, text: str, metadata: typing.Optional[ParseMetadata] = None
+    ) -> "Rule":
         """Parse a single rule."""
         # public <RuleName> = rule body;
         # <RuleName> = rule body;
         rule_match = Rule.RULE_DEFINITION.match(text)
-        assert rule_match is not None
+        assert rule_match is not None, f"No rule was found in {text}"
 
         public = rule_match.group(1) is not None
         rule_name = rule_match.group(2)
         rule_text = rule_match.group(3)
 
-        s = Sentence.parse(rule_text)
+        s = Sentence.parse(rule_text, metadata=metadata)
         return Rule(rule_name=rule_name, rule_body=s, public=public, text=text)
 
 
@@ -164,19 +176,21 @@ def walk_expression(
         return False
 
     if result is not None:
-        assert isinstance(result, Expression)
+        assert isinstance(result, Expression), f"Expected Expression, got {result}"
         expression = result
 
     if isinstance(expression, Sequence):
         for i in range(len(expression.items)):
             new_item = walk_expression(expression.items[i], visit, replacements)
             if new_item:
-                assert isinstance(new_item, Expression)
+                assert isinstance(
+                    new_item, Expression
+                ), f"Expected Expression, got {new_item}"
                 expression.items[i] = new_item
     elif isinstance(expression, Rule):
         new_body = walk_expression(expression.rule_body, visit, replacements)
         if new_body:
-            assert isinstance(new_body, Sentence)
+            assert isinstance(new_body, Sentence), f"Expected Sentence, got {new_body}"
             expression.rule_body = new_body
     elif isinstance(expression, RuleReference):
         key = f"<{expression.rule_name}>"
@@ -185,7 +199,9 @@ def walk_expression(
             for i in range(len(key_replacements)):
                 new_item = walk_expression(key_replacements[i], visit, replacements)
                 if new_item:
-                    assert isinstance(new_item, Expression)
+                    assert isinstance(
+                        new_item, Expression
+                    ), f"Expected Expression, got {new_item}"
                     key_replacements[i] = new_item
     elif isinstance(expression, SlotReference):
         key = f"${expression.slot_name}"
@@ -194,7 +210,9 @@ def walk_expression(
             for i in range(len(key_replacements)):
                 new_item = walk_expression(key_replacements[i], visit, replacements)
                 if new_item:
-                    assert isinstance(new_item, Expression)
+                    assert isinstance(
+                        new_item, Expression
+                    ), f"Expected Expression, got {new_item}"
                     key_replacements[i] = new_item
 
     return expression
@@ -293,7 +311,8 @@ def parse_expression(
     root: typing.Optional[Sequence],
     text: str,
     end: typing.List[str] = None,
-    is_literal=True,
+    is_literal: bool = True,
+    metadata: typing.Optional[ParseMetadata] = None,
 ) -> typing.Optional[int]:
     """Parse a full expression. Return index in text where current expression ends."""
     end = end or []
@@ -326,7 +345,12 @@ def parse_expression(
 
         if (c in {":", "!"}) and (last_c in {")", "]"}):
             # Handle sequence substitution/conversion
-            assert isinstance(last_taggable, Substitutable)
+            assert isinstance(last_taggable, Substitutable), parse_error(
+                f"Expected Substitutable, got {last_taggable}",
+                text,
+                current_index,
+                metadata=metadata,
+            )
 
             # Check for substitution sequence.
             # e.g., (input words):(output words)
@@ -340,7 +364,11 @@ def parse_expression(
                 next_seq_sub = False
 
             next_index = parse_expression(
-                None, text[current_index + 1 :], next_end, is_literal=False
+                None,
+                text[current_index + 1 :],
+                next_end,
+                is_literal=False,
+                metadata=metadata,
             )
 
             if next_index is None:
@@ -352,7 +380,9 @@ def parse_expression(
             if next_seq_sub:
                 # Consume end paren
                 next_index += 1
-                assert text[next_index - 1] == ")", "Missing end parenthesis"
+                assert text[next_index - 1] == ")", parse_error(
+                    "Missing end parenthesis", text, current_index, metadata=metadata
+                )
 
             if c == ":":
                 # Substitution/conversion
@@ -375,23 +405,44 @@ def parse_expression(
             # Break literal here
             literal = literal.strip()
             if literal:
-                assert last_group is not None
+                assert last_group is not None, parse_error(
+                    "No group preceeding literal",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 words = list(split_words(literal))
                 last_group.items.extend(words)
 
                 last_word = words[-1]
-                assert isinstance(last_word, Taggable)
+                assert isinstance(last_word, Taggable), parse_error(
+                    f"Expected Taggable, got {last_word}",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 last_taggable = last_word
                 literal = ""
 
             if c == "<":
                 # Rule reference
-                assert last_group is not None
+                assert last_group is not None, parse_error(
+                    "No group preceeding rule reference",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 rule = RuleReference()
                 end_index = parse_expression(
-                    None, text[current_index + 1 :], end=[">"], is_literal=False
+                    None,
+                    text[current_index + 1 :],
+                    end=[">"],
+                    is_literal=False,
+                    metadata=metadata,
                 )
-                assert end_index
+                assert end_index, parse_error(
+                    f"Failed to find ending '>'", text, current_index, metadata=metadata
+                )
                 next_index = end_index + current_index
 
                 rule_name = text[current_index + 1 : next_index - 1]
@@ -416,9 +467,14 @@ def parse_expression(
                     # instead.
                     group = Sequence(type=SequenceType.GROUP)
                     end_index = parse_expression(
-                        group, text[current_index + 1 :], end=[")"]
+                        group, text[current_index + 1 :], end=[")"], metadata=metadata
                     )
-                    assert end_index
+                    assert end_index, parse_error(
+                        f"Failed to find ending ')'",
+                        text,
+                        current_index,
+                        metadata=metadata,
+                    )
                     next_index = end_index + current_index
 
                     group = unwrap_sequence(group)
@@ -430,9 +486,14 @@ def parse_expression(
                 # Recurse with group sequence to capture multi-word children.
                 optional_seq = Sequence(type=SequenceType.GROUP)
                 end_index = parse_expression(
-                    optional_seq, text[current_index + 1 :], end=["]"]
+                    optional_seq,
+                    text[current_index + 1 :],
+                    end=["]"],
+                    metadata=metadata,
                 )
-                assert end_index
+                assert end_index, parse_error(
+                    f"Failed to find ending ']'", text, current_index, metadata=metadata
+                )
                 next_index = end_index + current_index
 
                 optional_seq = unwrap_sequence(optional_seq)
@@ -460,18 +521,37 @@ def parse_expression(
                 optional.items.append(Word(text=""))
                 optional.text = text[current_index + 1 : next_index - 1]
 
-                assert last_group is not None
+                assert last_group is not None, parse_error(
+                    "Expected group preceeding optional",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 last_group.items.append(optional)
                 last_taggable = optional
             elif c == "{":
-                assert last_taggable is not None
+                assert last_taggable is not None, parse_error(
+                    "Expected expression preceeding tag",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 tag = Tag()
 
                 # Tag
                 end_index = parse_expression(
-                    None, text[current_index + 1 :], end=["}"], is_literal=False
+                    None,
+                    text[current_index + 1 :],
+                    end=["}"],
+                    is_literal=False,
+                    metadata=metadata,
                 )
-                assert end_index
+                assert end_index, parse_error(
+                    f"Failed to find ending '}}'",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 next_index = end_index + current_index
 
                 # Exclude {}
@@ -495,7 +575,12 @@ def parse_expression(
 
                 last_taggable.tag = tag
             elif c == "|":
-                assert root is not None
+                assert root is not None, parse_error(
+                    "Unexpected '|' outside of group/alternative",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 if root.type != SequenceType.ALTERNATIVE:
                     # Create alternative
                     alternative = Sequence(type=SequenceType.ALTERNATIVE)
@@ -513,7 +598,12 @@ def parse_expression(
                     # Overwrite root
                     root = alternative
 
-                assert last_group is not None
+                assert last_group is not None, parse_error(
+                    "Expected group preceeding alternative",
+                    text,
+                    current_index,
+                    metadata=metadata,
+                )
                 if not last_group.text:
                     # Fix text
                     last_group.text = " ".join(item.text for item in last_group.items)
@@ -526,18 +616,30 @@ def parse_expression(
             # Accumulate into current literal
             literal += c
 
-    # End of expression; Break literal.
+    # End of expression
+    current_index = len(text)
+
+    # Break literal
     literal = literal.strip()
     if is_literal and literal:
-        assert root is not None
+        assert root is not None, parse_error(
+            "Literal outside parent expression", text, current_index, metadata=metadata
+        )
         words = list(split_words(literal))
-        assert last_group is not None
+        assert last_group is not None, parse_error(
+            "Expected group preceeding literal", text, current_index, metadata=metadata
+        )
         last_group.items.extend(words)
 
     if last_group:
         if len(last_group.items) == 1:
             # Simplify final group
-            assert root is not None
+            assert root is not None, parse_error(
+                "Group outside parent expression",
+                text,
+                current_index,
+                metadata=metadata,
+            )
             root.items[-1] = last_group.items[0]
         elif not last_group.text:
             # Fix text
@@ -548,3 +650,13 @@ def parse_expression(
         return None
 
     return next_index
+
+
+def parse_error(
+    error: str, text: str, column: int, metadata: typing.Optional[ParseMetadata] = None
+) -> str:
+    """Generate helpful parsing error if metadata is available."""
+    if metadata:
+        return f"{error} (text='{text}', file={metadata.file_name}, column={column}, line={metadata.line_number})"
+
+    return error
