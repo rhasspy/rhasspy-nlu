@@ -20,6 +20,7 @@ def graph_to_arpa(
     graph: nx.DiGraph,
     arpa_path: typing.Union[str, Path],
     vocab_path: typing.Optional[typing.Union[str, Path]] = None,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ):
     """Convert intent graph to ARPA language model using opengrm."""
     with tempfile.TemporaryDirectory() as temp_dir_str:
@@ -29,7 +30,9 @@ def graph_to_arpa(
         osymbols_path = temp_dir / "osymbols.txt"
 
         # Graph -> binary FST
-        graph_to_fst(graph).write_fst(fst_text_path, isymbols_path, osymbols_path)
+        graph_to_fst(graph, intent_filter=intent_filter).write_fst(
+            fst_text_path, isymbols_path, osymbols_path
+        )
 
         if vocab_path:
             # Extract vocabulary

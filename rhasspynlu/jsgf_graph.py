@@ -443,7 +443,11 @@ class GraphFsts:
 
 
 def graph_to_fsts(
-    graph: nx.DiGraph, eps="<eps>", weight_key="weight", default_weight=0
+    graph: nx.DiGraph,
+    eps="<eps>",
+    weight_key="weight",
+    default_weight=0,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> GraphFsts:
     """Convert graph to OpenFST text format, one per intent."""
     intent_fsts: typing.Dict[str, str] = {}
@@ -457,6 +461,11 @@ def graph_to_fsts(
 
     for _, intent_node, edge_data in graph.edges(start_node, data=True):
         intent_name: str = edge_data["olabel"][9:]
+
+        # Filter intents by name
+        if intent_filter and not intent_filter(intent_name):
+            continue
+
         final_states: typing.Set[int] = set()
         state_map: typing.Dict[int, int] = {}
 
@@ -556,7 +565,11 @@ class GraphFst:
 
 
 def graph_to_fst(
-    graph: nx.DiGraph, eps="<eps>", weight_key="weight", default_weight=0
+    graph: nx.DiGraph,
+    eps="<eps>",
+    weight_key="weight",
+    default_weight=0,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> GraphFst:
     """Convert graph to OpenFST text format."""
     symbols: typing.Dict[str, int] = {eps: 0}
@@ -573,55 +586,95 @@ def graph_to_fst(
         state_map: typing.Dict[int, int] = {}
 
         # Transitions
-        for edge in nx.edge_bfs(graph, start_node):
-            edge_data = graph.edges[edge]
-            from_node, to_node = edge
+        for _, intent_node, intent_edge_data in graph.edges(start_node, data=True):
+            intent_olabel: str = intent_edge_data["olabel"]
+            intent_name: str = intent_olabel[9:]
+
+            # Filter intents by name
+            if intent_filter and not intent_filter(intent_name):
+                continue
+
+            assert (
+                " " not in intent_olabel
+            ), f"Output symbol cannot contain whitespace: {intent_olabel}"
 
             # Map states starting from 0
-            from_state = state_map.get(from_node, len(state_map))
-            state_map[from_node] = from_state
+            from_state = state_map.get(start_node, len(state_map))
+            state_map[start_node] = from_state
 
-            to_state = state_map.get(to_node, len(state_map))
-            state_map[to_node] = to_state
-
-            # Get input/output labels.
-            # Empty string indicates epsilon transition (eps)
-            ilabel = edge_data.get("ilabel", "") or eps
-            olabel = edge_data.get("olabel", "") or eps
-
-            # Check for whitespace
-            assert (
-                " " not in ilabel
-            ), f"Input symbol cannot contain whitespace: {ilabel}"
-
-            assert (
-                " " not in olabel
-            ), f"Output symbol cannot contain whitespace: {olabel}"
+            to_state = state_map.get(intent_node, len(state_map))
+            state_map[intent_node] = to_state
 
             # Map labels (symbols) to integers
-            isymbol = symbols.get(ilabel, len(symbols))
-            symbols[ilabel] = isymbol
-            input_symbols[ilabel] = isymbol
+            isymbol = symbols.get(eps, len(symbols))
+            symbols[eps] = isymbol
+            input_symbols[eps] = isymbol
 
-            osymbol = symbols.get(olabel, len(symbols))
-            symbols[olabel] = osymbol
-            output_symbols[olabel] = osymbol
+            osymbol = symbols.get(intent_olabel, len(symbols))
+            symbols[intent_olabel] = osymbol
+            output_symbols[intent_olabel] = osymbol
 
             if weight_key:
-                weight = edge_data.get(weight_key, default_weight)
+                weight = intent_edge_data.get(weight_key, default_weight)
                 print(
-                    f"{from_state} {to_state} {ilabel} {olabel} {weight}", file=fst_file
+                    f"{from_state} {to_state} {eps} {intent_olabel} {weight}",
+                    file=fst_file,
                 )
             else:
                 # No weight
-                print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
+                print(f"{from_state} {to_state} {eps} {intent_olabel}", file=fst_file)
 
-            # Check if final state
-            if n_data[from_node].get("final", False):
-                final_states.add(from_state)
+            # Add intent sub-graphs
+            for edge in nx.edge_bfs(graph, intent_node):
+                edge_data = graph.edges[edge]
+                from_node, to_node = edge
 
-            if n_data[to_node].get("final", False):
-                final_states.add(to_state)
+                # Get input/output labels.
+                # Empty string indicates epsilon transition (eps)
+                ilabel = edge_data.get("ilabel", "") or eps
+                olabel = edge_data.get("olabel", "") or eps
+
+                # Check for whitespace
+                assert (
+                    " " not in ilabel
+                ), f"Input symbol cannot contain whitespace: {ilabel}"
+
+                assert (
+                    " " not in olabel
+                ), f"Output symbol cannot contain whitespace: {olabel}"
+
+                # Map states starting from 0
+                from_state = state_map.get(from_node, len(state_map))
+                state_map[from_node] = from_state
+
+                to_state = state_map.get(to_node, len(state_map))
+                state_map[to_node] = to_state
+
+                # Map labels (symbols) to integers
+                isymbol = symbols.get(ilabel, len(symbols))
+                symbols[ilabel] = isymbol
+                input_symbols[ilabel] = isymbol
+
+                osymbol = symbols.get(olabel, len(symbols))
+                symbols[olabel] = osymbol
+                output_symbols[olabel] = osymbol
+
+                if weight_key:
+                    weight = edge_data.get(weight_key, default_weight)
+                    print(
+                        f"{from_state} {to_state} {ilabel} {olabel} {weight}",
+                        file=fst_file,
+                    )
+                else:
+                    # No weight
+                    print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
+
+                # Check if final state
+                if n_data[from_node].get("final", False):
+                    final_states.add(from_state)
+
+                if n_data[to_node].get("final", False):
+                    final_states.add(to_state)
 
         # Record final states
         for final_state in final_states:
