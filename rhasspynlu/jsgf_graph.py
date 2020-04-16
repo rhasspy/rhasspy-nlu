@@ -36,6 +36,7 @@ def expression_to_graph(
     grammar_name: typing.Optional[str] = None,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
     rule_grammar: str = "",
+    expand_slots: bool = True,
 ) -> int:
     """Insert JSGF expression into a graph. Return final state."""
     replacements = replacements or {}
@@ -96,6 +97,7 @@ def expression_to_graph(
                     grammar_name=grammar_name,
                     count_dict=count_dict,
                     rule_grammar=rule_grammar,
+                    expand_slots=expand_slots,
                 )
                 final_states.append(next_state)
 
@@ -119,6 +121,7 @@ def expression_to_graph(
                     grammar_name=grammar_name,
                     count_dict=count_dict,
                     rule_grammar=rule_grammar,
+                    expand_slots=expand_slots,
                 )
 
             source_state = next_state
@@ -188,6 +191,7 @@ def expression_to_graph(
             grammar_name=grammar_name,
             count_dict=count_dict,
             rule_grammar=rule_grammar,
+            expand_slots=expand_slots,
         )
 
     elif isinstance(expression, SlotReference):
@@ -196,21 +200,24 @@ def expression_to_graph(
 
         # Prefix with $
         slot_name = "$" + slot_ref.slot_name
-        slot_values = replacements.get(slot_name)
-        assert slot_values, f"Missing slot {slot_name}"
 
-        # Interpret as alternative
-        slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=list(slot_values))
-        source_state = expression_to_graph(
-            slot_seq,
-            graph,
-            source_state,
-            replacements=replacements,
-            empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
-            grammar_name=grammar_name,
-            count_dict=count_dict,
-            rule_grammar=rule_grammar,
-        )
+        if expand_slots:
+            slot_values = replacements.get(slot_name)
+            assert slot_values, f"Missing slot {slot_name}"
+
+            # Interpret as alternative
+            slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=list(slot_values))
+            source_state = expression_to_graph(
+                slot_seq,
+                graph,
+                source_state,
+                replacements=replacements,
+                empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
+                grammar_name=grammar_name,
+                count_dict=count_dict,
+                rule_grammar=rule_grammar,
+                expand_slots=expand_slots,
+            )
 
         # Emit __source__ with slot name (no arguments)
         slot_name_noargs = split_slot_args(slot_ref.slot_name)[0]
@@ -322,6 +329,7 @@ def sentences_to_graph(
     replacements: typing.Optional[ReplacementsType] = None,
     add_intent_weights: bool = True,
     exclude_slots_from_counts: bool = True,
+    expand_slots: bool = True,
 ) -> nx.DiGraph:
     """Convert sentences grouped by intent into a directed graph."""
     num_intents = len(sentences)
@@ -391,6 +399,7 @@ def sentences_to_graph(
                 replacements=replacements,
                 grammar_name=intent_name,
                 count_dict=count_dict,
+                expand_slots=expand_slots,
             )
             final_states.append(next_state)
 
