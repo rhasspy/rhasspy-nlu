@@ -108,8 +108,8 @@ def evaluate_intents(
         expected_intent = expected[wav_name]
 
         # Compute real-time speed-up
-        wav_seconds = actual_intent.wav_seconds
-        transcribe_seconds = actual_intent.transcribe_seconds
+        wav_seconds = actual_intent.wav_seconds or 0.0
+        transcribe_seconds = actual_intent.transcribe_seconds or 0.0
         if (transcribe_seconds > 0) and (wav_seconds > 0):
             speedups.append(wav_seconds / transcribe_seconds)
 

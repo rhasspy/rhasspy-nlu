@@ -103,9 +103,10 @@ class Recognition:
     raw_tokens: typing.List[str] = field(default_factory=list)
 
     # Transcription details
-    wav_seconds: float = 0.0
-    transcribe_seconds: float = 0.0
-    speech_confidence: float = 0.0
+    wav_seconds: typing.Optional[float] = None
+    transcribe_seconds: typing.Optional[float] = None
+    speech_confidence: typing.Optional[float] = None
+    wav_name: typing.Optional[str] = None
 
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
