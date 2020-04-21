@@ -718,17 +718,7 @@ def sample_by_intent(
 
     sentences_by_intent: typing.Dict[str, typing.List[Recognition]] = defaultdict(list)
 
-    start_node = None
-    end_node = None
-    for node, node_data in intent_graph.nodes(data=True):
-        if node_data.get("start", False):
-            start_node = node
-        elif node_data.get("final", False):
-            end_node = node
-
-        if start_node and end_node:
-            break
-
+    start_node, end_node = get_start_end_nodes(intent_graph)
     assert (start_node is not None) and (
         end_node is not None
     ), "Missing start/end node(s)"
