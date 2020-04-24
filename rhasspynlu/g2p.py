@@ -65,6 +65,7 @@ def write_pronunciations(
     g2p_word_transform: typing.Optional[typing.Callable[[str], str]] = None,
     phonetisaurus_apply: typing.Optional[typing.Union[str, Path]] = None,
     missing_words_path: typing.Optional[typing.Union[str, Path]] = None,
+    number_repeated_words: bool = True,
 ):
     """Create pronunciation dictionary. Guess missing words if g2p model is available."""
     # Look up words
@@ -83,7 +84,7 @@ def write_pronunciations(
             # Write CMU format
             for i, phonemes in enumerate(word_phonemes):
                 phoneme_str = " ".join(phonemes).strip()
-                if i == 0:
+                if (not number_repeated_words) or (i == 0):
                     # word
                     print(word, phoneme_str, file=dictionary_file)
                 else:

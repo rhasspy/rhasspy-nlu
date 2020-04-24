@@ -1,8 +1,8 @@
 """Utilities for Rhasspy natural language understanding."""
-
 from .arpa_lm import arpa_to_fst, fst_to_arpa, graph_to_arpa, graph_to_arpa_small
 from .evaluate import evaluate_intents
 from .fsticuffs import recognize
+from .g2p import PronunciationsType, guess_pronunciations, read_pronunciations
 from .ini_jsgf import parse_ini
 from .jsgf import Rule, Sentence
 from .jsgf_graph import (
