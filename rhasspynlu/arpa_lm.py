@@ -192,7 +192,7 @@ def fst_to_arpa_tasks(
         "name": "intent_model",
         "file_dep": [counts_path],
         "targets": [model_path],
-        "actions": ["ngrammake %(dependencies)s %(targets)s"],
+        "actions": ["ngrammake --method=witten_bell %(dependencies)s %(targets)s"],
     }
 
     if base_fst_weight:
