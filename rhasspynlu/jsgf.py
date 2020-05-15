@@ -120,13 +120,12 @@ class Sentence(Sequence):
         """Parse a single sentence."""
         s = Sentence(text=text)
         parse_expression(s, text, metadata=metadata)
-        seq = unwrap_sequence(s)
         return Sentence(
-            text=seq.text,
-            items=seq.items,
-            type=seq.type,
-            tag=seq.tag,
-            substitution=seq.substitution,
+            text=s.text,
+            items=s.items,
+            type=s.type,
+            tag=s.tag,
+            substitution=s.substitution,
         )
 
 
@@ -291,20 +290,6 @@ def split_words(text: str) -> typing.Iterable[Expression]:
         else:
             # With without substitution
             yield Word(text=token)
-
-
-def unwrap_sequence(seq: Sequence) -> Sequence:
-    """Recursively unpack sequences with single items."""
-    # Unwrap single child
-    while (len(seq.items) == 1) and isinstance(seq.items[0], Sequence):
-        item = seq.items[0]
-        seq.type = item.type
-        seq.text = item.text or seq.text
-        seq.items = item.items
-        seq.tag = item.tag or seq.tag
-        seq.substitution = item.substitution or seq.substitution
-
-    return seq
 
 
 def parse_expression(
@@ -477,7 +462,6 @@ def parse_expression(
                     )
                     next_index = end_index + current_index
 
-                    group = unwrap_sequence(group)
                     group.text = text[current_index + 1 : next_index - 1]
                     last_group.items.append(group)
                     last_taggable = group
@@ -496,7 +480,6 @@ def parse_expression(
                 )
                 next_index = end_index + current_index
 
-                optional_seq = unwrap_sequence(optional_seq)
                 optional = Sequence(type=SequenceType.ALTERNATIVE)
                 if optional_seq.items:
                     if (

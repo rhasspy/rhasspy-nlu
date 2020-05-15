@@ -660,6 +660,33 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(value.raw_value, "bar")
         self.assertEqual(value.source, "test")
 
+    def test_final_optional_entity(self):
+        """Ensure final optional entity is matched."""
+
+        ini_text = """
+        [ChangeDisplay]
+        display (top | bottom){location} [(page | layer){layout}]
+        """
+
+        graph = intents_to_graph(parse_ini(ini_text))
+
+        recognitions = zero_times(
+            recognize("display bottom layer", graph)
+        )
+
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        entities = {e.entity: e for e in recognition.entities}
+
+        self.assertIn("location", entities)
+        location = entities["location"]
+        self.assertEqual(location.value, "bottom")
+
+        self.assertIn("layout", entities)
+        layout = entities["layout"]
+        self.assertEqual(layout.value, "layer")
 
 # -----------------------------------------------------------------------------
 

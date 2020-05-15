@@ -412,10 +412,15 @@ class OtherJsgfTestCase(unittest.TestCase):
                 Word("for"),
                 Sequence(
                     text="2 | 3",
-                    type=SequenceType.ALTERNATIVE,
+                    type=SequenceType.GROUP,
                     items=[
-                        Word("two", substitution="2"),
-                        Word("three", substitution="3"),
+                        Sequence(
+                            type=SequenceType.ALTERNATIVE,
+                            items=[
+                                Word("two", substitution="2"),
+                                Word("three", substitution="3"),
+                            ],
+                        )
                     ],
                 ),
                 Word("minutes"),
@@ -469,21 +474,25 @@ class OtherJsgfTestCase(unittest.TestCase):
             [
                 Sequence(
                     text="(light one):light_1 | (light two):light_2",
-                    type=SequenceType.ALTERNATIVE,
                     tag=Tag(tag_text="name"),
                     items=[
                         Sequence(
-                            text="light one",
-                            substitution="light_1",
-                            type=SequenceType.GROUP,
-                            items=[Word("light"), Word("one")],
-                        ),
-                        Sequence(
-                            text="light two",
-                            substitution="light_2",
-                            type=SequenceType.GROUP,
-                            items=[Word("light"), Word("two")],
-                        ),
+                            type=SequenceType.ALTERNATIVE,
+                            items=[
+                                Sequence(
+                                    text="light one",
+                                    substitution="light_1",
+                                    type=SequenceType.GROUP,
+                                    items=[Word("light"), Word("one")],
+                                ),
+                                Sequence(
+                                    text="light two",
+                                    substitution="light_2",
+                                    type=SequenceType.GROUP,
+                                    items=[Word("light"), Word("two")],
+                                ),
+                            ],
+                        )
                     ],
                 ),
                 Word(text="", substitution="domain", tag=Tag(tag_text="light")),

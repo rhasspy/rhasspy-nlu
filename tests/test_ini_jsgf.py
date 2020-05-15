@@ -2,7 +2,7 @@
 import unittest
 
 from rhasspynlu.ini_jsgf import get_intent_counts, parse_ini, split_rules
-from rhasspynlu.jsgf import Sentence, Sequence, SequenceType, Word, walk_expression
+from rhasspynlu.jsgf import Sentence, Sequence, SequenceType, Word, walk_expression, Tag
 
 
 class IniJsgfTestCase(unittest.TestCase):
@@ -169,6 +169,42 @@ class IniJsgfTestCase(unittest.TestCase):
                 type=SequenceType.ALTERNATIVE,
                 items=[Word("two", substitution="2"), Word("three", substitution="3")],
             ),
+        )
+
+    def test_final_optional_entity(self):
+        """Ensure final optional entity has tag."""
+
+        ini_text = """
+        [ChangeDisplay]
+        display [(page | layer){layout}]
+        """
+
+        intents = parse_ini(ini_text)
+        self.assertEqual(
+            intents,
+            {
+                "ChangeDisplay": [
+                    Sentence(
+                        text="display [(page | layer){layout}]",
+                        items=[
+                            Word("display"),
+                            Sequence(
+                                text="(page | layer){layout}",
+                                type=SequenceType.ALTERNATIVE,
+                                items=[
+                                    Sequence(
+                                        text="page | layer",
+                                        type=SequenceType.ALTERNATIVE,
+                                        items=[Word("page"), Word("layer")],
+                                        tag=Tag(tag_text="layout"),
+                                    ),
+                                    Word(""),
+                                ],
+                            ),
+                        ],
+                    )
+                ]
+            },
         )
 
 
