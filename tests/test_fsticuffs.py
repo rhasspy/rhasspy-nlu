@@ -670,9 +670,7 @@ class MiscellaneousTestCase(unittest.TestCase):
 
         graph = intents_to_graph(parse_ini(ini_text))
 
-        recognitions = zero_times(
-            recognize("display bottom layer", graph)
-        )
+        recognitions = zero_times(recognize("display bottom layer", graph))
 
         self.assertEqual(len(recognitions), 1)
         recognition = recognitions[0]
@@ -687,6 +685,7 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertIn("layout", entities)
         layout = entities["layout"]
         self.assertEqual(layout.value, "layer")
+
 
 # -----------------------------------------------------------------------------
 
