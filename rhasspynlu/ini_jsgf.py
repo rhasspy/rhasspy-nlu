@@ -199,7 +199,7 @@ def get_intent_counts(
     replacements: typing.Optional[ReplacementsType] = None,
     exclude_slots: bool = True,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
-):
+) -> typing.Dict[str, int]:
     """Get number of possible sentences for each intent."""
     intent_counts: typing.Dict[str, int] = defaultdict(int)
 
