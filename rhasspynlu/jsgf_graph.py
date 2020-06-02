@@ -376,7 +376,7 @@ def sentences_to_graph(
         olabel = f"__label__{intent_name}"
         label = f":{olabel}"
 
-        edge_kwargs = {}
+        edge_kwargs: typing.Dict[str, typing.Any] = {}
         if add_intent_weights and (num_intents > 1):
             edge_kwargs["sentence_count"] = intent_counts.get(intent_name, 1)
             edge_kwargs["weight"] = intent_weights.get(intent_name, 0)
