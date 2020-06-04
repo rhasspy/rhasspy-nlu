@@ -177,7 +177,7 @@ def evaluate_intents(
         if expected_text:
             word_error = get_word_error(expected_text.split(), actual_text.split())
             report.num_words += word_error.words
-            report.correct_words += word_error.matches
+            report.correct_words += word_error.words - word_error.errors
 
             # pylint: disable=E1136
             report.actual[wav_name].word_error = word_error
