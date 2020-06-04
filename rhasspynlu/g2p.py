@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import typing
+from enum import Enum
 from pathlib import Path
 
 PronunciationsType = typing.Dict[str, typing.List[typing.List[str]]]
@@ -28,9 +29,18 @@ class MissingWordPronunciationsException(Exception):
 # -----------------------------------------------------------------------------
 
 
+class PronunciationAction(str, Enum):
+    """Action taken when multiple pronunciations for the same word are found."""
+
+    APPEND = "append"
+    OVERWRITE_ONCE = "overwrite_once"
+    OVERWRITE_ALWAYS = "overwrite_always"
+
+
 def read_pronunciations(
     dict_file: typing.Iterable[str],
     word_dict: typing.Optional[PronunciationsType] = None,
+    action: PronunciationAction = PronunciationAction.APPEND,
 ) -> PronunciationsType:
     """Loads a CMU-like pronunciation dictionary, optionally into an existing dictionary."""
     if word_dict is None:
@@ -46,10 +56,17 @@ def read_pronunciations(
             word, *pronounce = re.split(r"[ \t]+", line)
 
             word = word.split("(")[0]
+            has_word = word in word_dict
 
-            if word in word_dict:
+            if has_word and (action == PronunciationAction.APPEND):
+                # Append to list of pronunciations
                 word_dict[word].append(pronounce)
+            elif action == PronunciationAction.OVERWRITE_ONCE:
+                # Overwrite just once, then append
+                word_dict[word] = [pronounce]
+                action = PronunciationAction.APPEND
             else:
+                # Overwrite
                 word_dict[word] = [pronounce]
         except Exception as e:
             _LOGGER.warning("read_pronunciations: %s (line %s)", e, i + 1)
