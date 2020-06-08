@@ -686,6 +686,34 @@ class MiscellaneousTestCase(unittest.TestCase):
         layout = entities["layout"]
         self.assertEqual(layout.value, "layer")
 
+    def test_slot_case_inside_substitution(self):
+        """Ensure word casing doesn't interfere with group substitution."""
+        ini_text = """
+        [TestIntent]
+        this is a ($test){value}
+        """
+
+        replacements = {"$test": [Sentence.parse("(Bar:bar | Baz:baz):barorbaz")]}
+        graph = intents_to_graph(parse_ini(ini_text), replacements)
+
+        recognitions = zero_times(
+            recognize("this is a bar", graph, fuzzy=False, word_transform=str.lower)
+        )
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        # Check sequence substitution
+        self.assertEqual(recognition.text, "this is a barorbaz")
+        self.assertEqual(recognition.raw_text, "this is a bar")
+
+        self.assertEqual(len(recognition.entities), 1)
+        value = recognition.entities[0]
+        self.assertEqual(value.entity, "value")
+        self.assertEqual(value.value, "barorbaz")
+        self.assertEqual(value.raw_value, "bar")
+        self.assertEqual(value.source, "test")
+
 
 # -----------------------------------------------------------------------------
 

@@ -32,7 +32,7 @@ def expression_to_graph(
     graph: nx.DiGraph,
     source_state: int,
     replacements: typing.Optional[ReplacementsType] = None,
-    empty_substitution: bool = False,
+    empty_substitution: int = 0,
     grammar_name: typing.Optional[str] = None,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
     rule_grammar: str = "",
@@ -44,7 +44,7 @@ def expression_to_graph(
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
         # Ensure everything downstream outputs nothing
-        empty_substitution = True
+        empty_substitution += 1
 
     # Handle tag begin
     if isinstance(expression, Taggable) and expression.tag:
@@ -60,7 +60,7 @@ def expression_to_graph(
 
         if expression.tag.substitution:
             # Ensure everything downstream outputs nothing
-            empty_substitution = True
+            empty_substitution += 1
 
     # Handle converters begin
     begin_converters: typing.List[str] = []
@@ -131,7 +131,7 @@ def expression_to_graph(
         next_state = len(graph)
         graph.add_node(next_state, word=word.text)
 
-        if (word.substitution is None) and (not empty_substitution):
+        if (word.substitution is None) and (empty_substitution <= 0):
             # Single word input/output
             graph.add_edge(
                 source_state,
@@ -155,7 +155,7 @@ def expression_to_graph(
 
             # Add word output(s)
             olabels = [word.text] if (word.substitution is None) else word.substitution
-            if not empty_substitution:
+            if empty_substitution <= 0:
                 source_state = add_substitution(graph, olabels, source_state)
     elif isinstance(expression, RuleReference):
         # Reference to a local or remote rule
@@ -212,7 +212,9 @@ def expression_to_graph(
                 graph,
                 source_state,
                 replacements=replacements,
-                empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
+                empty_substitution=(
+                    empty_substitution + (1 if slot_ref.substitution else 0)
+                ),
                 grammar_name=grammar_name,
                 count_dict=count_dict,
                 rule_grammar=rule_grammar,
@@ -231,7 +233,11 @@ def expression_to_graph(
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
         # Output substituted word(s)
-        source_state = add_substitution(graph, expression.substitution, source_state)
+        empty_substitution -= 1
+        if empty_substitution <= 0:
+            source_state = add_substitution(
+                graph, expression.substitution, source_state
+            )
 
     # Handle converters end
     end_converters: typing.List[str] = []
