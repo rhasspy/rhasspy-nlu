@@ -615,6 +615,10 @@ def parse_expression(
         last_group.items.extend(words)
 
     if last_group:
+        if not last_group.text:
+            # Fix text
+            last_group.text = " ".join(item.text for item in last_group.items)
+
         if len(last_group.items) == 1:
             # Simplify final group
             assert root is not None, parse_error(
@@ -624,9 +628,18 @@ def parse_expression(
                 metadata=metadata,
             )
             root.items[-1] = last_group.items[0]
-        elif not last_group.text:
-            # Fix text
-            last_group.text = " ".join(item.text for item in last_group.items)
+
+            # Force text to be fixed
+            root.text = ""
+
+    if root and (not root.text):
+        # Fix text
+        if root.type == SequenceType.ALTERNATIVE:
+            # Pipe separated
+            root.text = " | ".join(item.text for item in root.items)
+        else:
+            # Space separated
+            root.text = " ".join(item.text for item in root.items)
 
     if end and (not found):
         # Signal end not found

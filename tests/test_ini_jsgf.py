@@ -166,8 +166,17 @@ class IniJsgfTestCase(unittest.TestCase):
             minute,
             Sentence(
                 text="2 | 3",
-                type=SequenceType.ALTERNATIVE,
-                items=[Word("two", substitution="2"), Word("three", substitution="3")],
+                type=SequenceType.GROUP,
+                items=[
+                    Sequence(
+                        text="2 | 3",
+                        type=SequenceType.ALTERNATIVE,
+                        items=[
+                            Word("two", substitution="2"),
+                            Word("three", substitution="3"),
+                        ],
+                    )
+                ],
             ),
         )
 
@@ -194,9 +203,15 @@ class IniJsgfTestCase(unittest.TestCase):
                                 items=[
                                     Sequence(
                                         text="page | layer",
-                                        type=SequenceType.ALTERNATIVE,
-                                        items=[Word("page"), Word("layer")],
+                                        type=SequenceType.GROUP,
                                         tag=Tag(tag_text="layout"),
+                                        items=[
+                                            Sequence(
+                                                text="page | layer",
+                                                type=SequenceType.ALTERNATIVE,
+                                                items=[Word("page"), Word("layer")],
+                                            )
+                                        ],
                                     ),
                                     Word(""),
                                 ],

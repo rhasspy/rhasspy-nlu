@@ -46,8 +46,14 @@ class BasicJsgfTestCase(unittest.TestCase):
                 Word("this"),
                 Sequence(
                     text="is | a",
-                    type=SequenceType.ALTERNATIVE,
-                    items=[Word("is"), Word("a")],
+                    type=SequenceType.GROUP,
+                    items=[
+                        Sequence(
+                            text="is | a",
+                            type=SequenceType.ALTERNATIVE,
+                            items=[Word("is"), Word("a")],
+                        )
+                    ],
                 ),
                 Word("test"),
             ],
@@ -94,15 +100,17 @@ class BasicJsgfTestCase(unittest.TestCase):
     def test_tag_group(self):
         """Tag a group."""
         s = Sentence.parse("(this is a){test}")
-        self.assertEqual(s.tag, Tag(tag_text="test"))
-        self.assertEqual(s.items, [Word("this"), Word("is"), Word("a")])
+        group = s.items[0]
+        self.assertEqual(group.tag, Tag(tag_text="test"))
+        self.assertEqual(group.items, [Word("this"), Word("is"), Word("a")])
 
     def test_tag_alternative(self):
         """Tag an alternative."""
         s = Sentence.parse("[this is a]{test}")
-        self.assertEqual(s.tag, Tag(tag_text="test"))
+        alt = s.items[0]
+        self.assertEqual(alt.tag, Tag(tag_text="test"))
         self.assertEqual(
-            s.items,
+            alt.items,
             [
                 Sequence(
                     text="this is a",
@@ -194,7 +202,14 @@ class AdvancedJsgfTestCase(unittest.TestCase):
                 Sequence(
                     text="is | a",
                     type=SequenceType.ALTERNATIVE,
-                    items=[Word("is"), Word("a"), Word("")],
+                    items=[
+                        Sequence(
+                            text="is | a",
+                            type=SequenceType.ALTERNATIVE,
+                            items=[Word("is"), Word("a")],
+                        ),
+                        Word(""),
+                    ],
                 ),
                 Word("test"),
             ],
@@ -215,8 +230,9 @@ class AdvancedJsgfTestCase(unittest.TestCase):
     def test_group_substitution(self):
         """Group substitution."""
         s = Sentence.parse("(this is a):test")
-        self.assertEqual(s.substitution, "test")
-        self.assertEqual(s.items, [Word("this"), Word("is"), Word("a")])
+        group = s.items[0]
+        self.assertEqual(group.substitution, "test")
+        self.assertEqual(group.items, [Word("this"), Word("is"), Word("a")])
 
     def test_alternative_substitution(self):
         """Alternative substitution."""
@@ -245,14 +261,16 @@ class AdvancedJsgfTestCase(unittest.TestCase):
     def test_tag_substitution(self):
         """Tag substitution."""
         s = Sentence.parse("(this is){a:test}")
-        self.assertEqual(s.tag, Tag(tag_text="a", substitution="test"))
-        self.assertEqual(s.items, [Word("this"), Word("is")])
+        group = s.items[0]
+        self.assertEqual(group.tag, Tag(tag_text="a", substitution="test"))
+        self.assertEqual(group.items, [Word("this"), Word("is")])
 
     def test_tag_and_word_substitution(self):
         """Tag and word substitutions."""
         s = Sentence.parse("(this:is){a:test}")
-        self.assertEqual(s.tag, Tag(tag_text="a", substitution="test"))
-        self.assertEqual(s.items, [Word("this", substitution="is")])
+        group = s.items[0]
+        self.assertEqual(group.tag, Tag(tag_text="a", substitution="test"))
+        self.assertEqual(group.items, [Word("this", substitution="is")])
 
     def test_nested_optionals(self):
         """Optional inside an optional."""
@@ -287,9 +305,10 @@ class AdvancedJsgfTestCase(unittest.TestCase):
     def test_implicit_sequences(self):
         """Implicit sequences around alternative."""
         s = Sentence.parse("this is | a test")
-        self.assertEqual(s.type, SequenceType.ALTERNATIVE)
+        alt = s.items[0]
+        self.assertEqual(alt.type, SequenceType.ALTERNATIVE)
         self.assertEqual(
-            s.items,
+            alt.items,
             [
                 Sequence(
                     text="this is",
@@ -307,9 +326,10 @@ class AdvancedJsgfTestCase(unittest.TestCase):
     def test_implicit_sequence_with_rule(self):
         """Implicit sequence around alternative with a rule reference."""
         s = Sentence.parse("this | is a <test>")
-        self.assertEqual(s.type, SequenceType.ALTERNATIVE)
+        alt = s.items[0]
+        self.assertEqual(alt.type, SequenceType.ALTERNATIVE)
         self.assertEqual(
-            s.items,
+            alt.items,
             [
                 Word("this"),
                 Sequence(
@@ -338,7 +358,7 @@ class AdvancedJsgfTestCase(unittest.TestCase):
                     type=SequenceType.ALTERNATIVE,
                     items=[
                         Sequence(
-                            text="($test){tag}",
+                            text="$test",
                             type=SequenceType.GROUP,
                             tag=Tag(tag_text="tag"),
                             items=[SlotReference(slot_name="test", text="$test")],
@@ -372,8 +392,14 @@ class OtherJsgfTestCase(unittest.TestCase):
                 ),
                 Sequence(
                     text="den | playroom",
-                    type=SequenceType.ALTERNATIVE,
-                    items=[Word("den"), Word("playroom")],
+                    type=SequenceType.GROUP,
+                    items=[
+                        Sequence(
+                            text="den | playroom",
+                            type=SequenceType.ALTERNATIVE,
+                            items=[Word("den"), Word("playroom")],
+                        )
+                    ],
                 ),
                 Sequence(
                     text="light",
@@ -415,6 +441,7 @@ class OtherJsgfTestCase(unittest.TestCase):
                     type=SequenceType.GROUP,
                     items=[
                         Sequence(
+                            text="2 | 3",
                             type=SequenceType.ALTERNATIVE,
                             items=[
                                 Word("two", substitution="2"),
@@ -477,6 +504,7 @@ class OtherJsgfTestCase(unittest.TestCase):
                     tag=Tag(tag_text="name"),
                     items=[
                         Sequence(
+                            text="light one | light two",
                             type=SequenceType.ALTERNATIVE,
                             items=[
                                 Sequence(
