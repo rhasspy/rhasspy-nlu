@@ -222,6 +222,27 @@ class IniJsgfTestCase(unittest.TestCase):
             },
         )
 
+    def test_rule_with_same_name(self):
+        """Ensure referenced rule names don't conflict with local names."""
+
+        ini_text = """
+        [Test1]
+        rule = is a test
+        this <rule>
+
+        [Test2]
+        rule = <Test1.rule>
+        this <rule>
+        """
+
+        _intents = parse_ini(ini_text)
+        intents, replacements = split_rules(_intents)
+
+        # Walk all sentences to make sure there's no infinite recursion
+        for intent, sentences in intents.items():
+            for sentence in sentences:
+                walk_expression(sentence, lambda x: x, replacements)
+
 
 # -----------------------------------------------------------------------------
 

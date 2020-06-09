@@ -92,6 +92,14 @@ class RuleReference(Taggable, Expression):
     # Grammar name of referenced rule
     grammar_name: typing.Optional[str] = None
 
+    @property
+    def full_rule_name(self):
+        """Get fully qualified rule name."""
+        if self.grammar_name:
+            return f"{self.grammar_name}.{self.rule_name}"
+
+        return self.rule_name
+
 
 @dataclass
 class SlotReference(Substitutable, Taggable, Expression):
@@ -107,6 +115,7 @@ class ParseMetadata:
 
     file_name: str
     line_number: int
+    intent_name: typing.Optional[str] = None
 
 
 @dataclass
@@ -192,7 +201,7 @@ def walk_expression(
             assert isinstance(new_body, Sentence), f"Expected Sentence, got {new_body}"
             expression.rule_body = new_body
     elif isinstance(expression, RuleReference):
-        key = f"<{expression.rule_name}>"
+        key = f"<{expression.full_rule_name}>"
         if replacements and (key in replacements):
             key_replacements = replacements[key]
             for i in range(len(key_replacements)):
@@ -439,6 +448,10 @@ def parse_expression(
                 else:
                     # Use entire name
                     rule.rule_name = rule_name
+
+                    if metadata:
+                        # Use intent name for grammar name
+                        rule.grammar_name = metadata.intent_name
 
                 rule.text = text[current_index:next_index]
                 last_group.items.append(rule)

@@ -120,7 +120,9 @@ def parse_ini(
                         Sentence.parse(
                             sentence,
                             metadata=ParseMetadata(
-                                file_name=file_name, line_number=line_number
+                                file_name=file_name,
+                                line_number=line_number,
+                                intent_name=sec_name,
                             ),
                         )
                     )
@@ -141,7 +143,9 @@ def parse_ini(
                         Rule.parse(
                             rule,
                             metadata=ParseMetadata(
-                                file_name=file_name, line_number=line_number
+                                file_name=file_name,
+                                line_number=line_number,
+                                intent_name=sec_name,
                             ),
                         )
                     )
@@ -175,15 +179,9 @@ def split_rules(
             if isinstance(expr, Rule):
                 # Rule
                 rule_name = expr.rule_name
-                if "." not in rule_name:
-                    # Add local replacement
-                    replacements[f"<{rule_name}>"] = [expr.rule_body]
-
-                    # Use fully qualified name too
-                    rule_name = f"{intent_name}.{rule_name}"
 
                 # Surround with <>
-                rule_name = f"<{rule_name}>"
+                rule_name = f"<{intent_name}.{rule_name}>"
                 replacements[rule_name] = [expr.rule_body]
             else:
                 sentences[intent_name].append(expr)
@@ -263,7 +261,7 @@ def get_expression_count(
             return count
     elif isinstance(expression, RuleReference):
         # Get substituted sentences for <rule>
-        key = f"<{expression.rule_name}>"
+        key = f"<{expression.full_rule_name}>"
         assert replacements, key
         count = sum(
             get_expression_count(
