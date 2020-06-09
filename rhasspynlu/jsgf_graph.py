@@ -1,4 +1,5 @@
 """Utilities to convert JSGF sentences to directed graphs."""
+import base64
 import gzip
 import io
 import math
@@ -21,6 +22,7 @@ from .jsgf import (
     Taggable,
     Word,
 )
+from .slots import split_slot_args
 
 # -----------------------------------------------------------------------------
 
@@ -30,10 +32,11 @@ def expression_to_graph(
     graph: nx.DiGraph,
     source_state: int,
     replacements: typing.Optional[ReplacementsType] = None,
-    empty_substitution: bool = False,
+    empty_substitution: int = 0,
     grammar_name: typing.Optional[str] = None,
     count_dict: typing.Optional[typing.Dict[Expression, int]] = None,
     rule_grammar: str = "",
+    expand_slots: bool = True,
 ) -> int:
     """Insert JSGF expression into a graph. Return final state."""
     replacements = replacements or {}
@@ -41,7 +44,7 @@ def expression_to_graph(
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
         # Ensure everything downstream outputs nothing
-        empty_substitution = True
+        empty_substitution += 1
 
     # Handle tag begin
     if isinstance(expression, Taggable) and expression.tag:
@@ -50,12 +53,14 @@ def expression_to_graph(
         tag = expression.tag.tag_text
         olabel = f"__begin__{tag}"
         label = f":{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
         if expression.tag.substitution:
             # Ensure everything downstream outputs nothing
-            empty_substitution = True
+            empty_substitution += 1
 
     # Handle converters begin
     begin_converters: typing.List[str] = []
@@ -70,7 +75,9 @@ def expression_to_graph(
         next_state = len(graph)
         olabel = f"__convert__{converter_name}"
         label = f"!{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
     if isinstance(expression, Sequence):
@@ -90,6 +97,7 @@ def expression_to_graph(
                     grammar_name=grammar_name,
                     count_dict=count_dict,
                     rule_grammar=rule_grammar,
+                    expand_slots=expand_slots,
                 )
                 final_states.append(next_state)
 
@@ -113,6 +121,7 @@ def expression_to_graph(
                     grammar_name=grammar_name,
                     count_dict=count_dict,
                     rule_grammar=rule_grammar,
+                    expand_slots=expand_slots,
                 )
 
             source_state = next_state
@@ -122,7 +131,7 @@ def expression_to_graph(
         next_state = len(graph)
         graph.add_node(next_state, word=word.text)
 
-        if (word.substitution is None) and (not empty_substitution):
+        if (word.substitution is None) and (empty_substitution <= 0):
             # Single word input/output
             graph.add_edge(
                 source_state,
@@ -146,7 +155,7 @@ def expression_to_graph(
 
             # Add word output(s)
             olabels = [word.text] if (word.substitution is None) else word.substitution
-            if not empty_substitution:
+            if empty_substitution <= 0:
                 source_state = add_substitution(graph, olabels, source_state)
     elif isinstance(expression, RuleReference):
         # Reference to a local or remote rule
@@ -167,8 +176,8 @@ def expression_to_graph(
             rule_name = rule_ref.rule_name
 
         # Surround with <>
-        rule_name = f"<{rule_name}>"
-        rule_replacements = replacements.get(rule_name)
+        rule_name_brackets = f"<{rule_name}>"
+        rule_replacements = replacements.get(rule_name_brackets)
         assert rule_replacements, f"Missing rule {rule_name}"
 
         rule_body = next(iter(rule_replacements))
@@ -182,33 +191,53 @@ def expression_to_graph(
             grammar_name=grammar_name,
             count_dict=count_dict,
             rule_grammar=rule_grammar,
+            expand_slots=expand_slots,
         )
+
     elif isinstance(expression, SlotReference):
         # Reference to slot values
         slot_ref: SlotReference = expression
 
         # Prefix with $
         slot_name = "$" + slot_ref.slot_name
-        slot_values = replacements.get(slot_name)
-        assert slot_values, f"Missing slot {slot_name}"
 
-        # Interpret as alternative
-        slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=list(slot_values))
-        source_state = expression_to_graph(
-            slot_seq,
-            graph,
-            source_state,
-            replacements=replacements,
-            empty_substitution=(empty_substitution or bool(slot_ref.substitution)),
-            grammar_name=grammar_name,
-            count_dict=count_dict,
-            rule_grammar=rule_grammar,
+        if expand_slots:
+            slot_values = replacements.get(slot_name)
+            assert slot_values, f"Missing slot {slot_name}"
+
+            # Interpret as alternative
+            slot_seq = Sequence(type=SequenceType.ALTERNATIVE, items=list(slot_values))
+            source_state = expression_to_graph(
+                slot_seq,
+                graph,
+                source_state,
+                replacements=replacements,
+                empty_substitution=(
+                    empty_substitution + (1 if slot_ref.substitution else 0)
+                ),
+                grammar_name=grammar_name,
+                count_dict=count_dict,
+                rule_grammar=rule_grammar,
+                expand_slots=expand_slots,
+            )
+
+        # Emit __source__ with slot name (no arguments)
+        slot_name_noargs = split_slot_args(slot_ref.slot_name)[0]
+        next_state = len(graph)
+        olabel = f"__source__{slot_name_noargs}"
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=olabel, label=maybe_pack(olabel)
         )
+        source_state = next_state
 
     # Handle sequence substitution
     if isinstance(expression, Substitutable) and expression.substitution:
         # Output substituted word(s)
-        source_state = add_substitution(graph, expression.substitution, source_state)
+        empty_substitution -= 1
+        if empty_substitution <= 0:
+            source_state = add_substitution(
+                graph, expression.substitution, source_state
+            )
 
     # Handle converters end
     end_converters: typing.List[str] = []
@@ -223,7 +252,9 @@ def expression_to_graph(
         next_state = len(graph)
         olabel = f"__converted__{converter_name}"
         label = f"!{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
     # Handle tag end
@@ -240,7 +271,9 @@ def expression_to_graph(
         tag = expression.tag.tag_text
         olabel = f"__end__{tag}"
         label = f":{olabel}"
-        graph.add_edge(source_state, next_state, ilabel="", olabel=olabel, label=label)
+        graph.add_edge(
+            source_state, next_state, ilabel="", olabel=maybe_pack(olabel), label=label
+        )
         source_state = next_state
 
     return source_state
@@ -258,12 +291,24 @@ def add_substitution(
     for olabel in substitution:
         next_state = len(graph)
         graph.add_edge(
-            source_state, next_state, ilabel="", olabel=olabel, label=f":{olabel}"
+            source_state,
+            next_state,
+            ilabel="",
+            olabel=maybe_pack(olabel),
+            label=f":{olabel}",
         )
 
         source_state = next_state
 
     return source_state
+
+
+def maybe_pack(olabel: str) -> str:
+    """Pack output label as base64 if it contains whitespace."""
+    if " " in olabel:
+        return "__unpack__" + base64.encodebytes(olabel.encode()).decode().strip()
+
+    return olabel
 
 
 # -----------------------------------------------------------------------------
@@ -290,6 +335,7 @@ def sentences_to_graph(
     replacements: typing.Optional[ReplacementsType] = None,
     add_intent_weights: bool = True,
     exclude_slots_from_counts: bool = True,
+    expand_slots: bool = True,
 ) -> nx.DiGraph:
     """Convert sentences grouped by intent into a directed graph."""
     num_intents = len(sentences)
@@ -336,7 +382,7 @@ def sentences_to_graph(
         olabel = f"__label__{intent_name}"
         label = f":{olabel}"
 
-        edge_kwargs = {}
+        edge_kwargs: typing.Dict[str, typing.Any] = {}
         if add_intent_weights and (num_intents > 1):
             edge_kwargs["sentence_count"] = intent_counts.get(intent_name, 1)
             edge_kwargs["weight"] = intent_weights.get(intent_name, 0)
@@ -359,6 +405,7 @@ def sentences_to_graph(
                 replacements=replacements,
                 grammar_name=intent_name,
                 count_dict=count_dict,
+                expand_slots=expand_slots,
             )
             final_states.append(next_state)
 
@@ -411,7 +458,11 @@ class GraphFsts:
 
 
 def graph_to_fsts(
-    graph: nx.DiGraph, eps="<eps>", weight_key="weight", default_weight=0
+    graph: nx.DiGraph,
+    eps="<eps>",
+    weight_key="weight",
+    default_weight=0,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> GraphFsts:
     """Convert graph to OpenFST text format, one per intent."""
     intent_fsts: typing.Dict[str, str] = {}
@@ -425,6 +476,11 @@ def graph_to_fsts(
 
     for _, intent_node, edge_data in graph.edges(start_node, data=True):
         intent_name: str = edge_data["olabel"][9:]
+
+        # Filter intents by name
+        if intent_filter and not intent_filter(intent_name):
+            continue
+
         final_states: typing.Set[int] = set()
         state_map: typing.Dict[int, int] = {}
 
@@ -524,7 +580,11 @@ class GraphFst:
 
 
 def graph_to_fst(
-    graph: nx.DiGraph, eps="<eps>", weight_key="weight", default_weight=0
+    graph: nx.DiGraph,
+    eps="<eps>",
+    weight_key="weight",
+    default_weight=0,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
 ) -> GraphFst:
     """Convert graph to OpenFST text format."""
     symbols: typing.Dict[str, int] = {eps: 0}
@@ -541,46 +601,95 @@ def graph_to_fst(
         state_map: typing.Dict[int, int] = {}
 
         # Transitions
-        for edge in nx.edge_bfs(graph, start_node):
-            edge_data = graph.edges[edge]
-            from_node, to_node = edge
+        for _, intent_node, intent_edge_data in graph.edges(start_node, data=True):
+            intent_olabel: str = intent_edge_data["olabel"]
+            intent_name: str = intent_olabel[9:]
+
+            # Filter intents by name
+            if intent_filter and not intent_filter(intent_name):
+                continue
+
+            assert (
+                " " not in intent_olabel
+            ), f"Output symbol cannot contain whitespace: {intent_olabel}"
 
             # Map states starting from 0
-            from_state = state_map.get(from_node, len(state_map))
-            state_map[from_node] = from_state
+            from_state = state_map.get(start_node, len(state_map))
+            state_map[start_node] = from_state
 
-            to_state = state_map.get(to_node, len(state_map))
-            state_map[to_node] = to_state
-
-            # Get input/output labels.
-            # Empty string indicates epsilon transition (eps)
-            ilabel = edge_data.get("ilabel", "") or eps
-            olabel = edge_data.get("olabel", "") or eps
+            to_state = state_map.get(intent_node, len(state_map))
+            state_map[intent_node] = to_state
 
             # Map labels (symbols) to integers
-            isymbol = symbols.get(ilabel, len(symbols))
-            symbols[ilabel] = isymbol
-            input_symbols[ilabel] = isymbol
+            isymbol = symbols.get(eps, len(symbols))
+            symbols[eps] = isymbol
+            input_symbols[eps] = isymbol
 
-            osymbol = symbols.get(olabel, len(symbols))
-            symbols[olabel] = osymbol
-            output_symbols[olabel] = osymbol
+            osymbol = symbols.get(intent_olabel, len(symbols))
+            symbols[intent_olabel] = osymbol
+            output_symbols[intent_olabel] = osymbol
 
             if weight_key:
-                weight = edge_data.get(weight_key, default_weight)
+                weight = intent_edge_data.get(weight_key, default_weight)
                 print(
-                    f"{from_state} {to_state} {ilabel} {olabel} {weight}", file=fst_file
+                    f"{from_state} {to_state} {eps} {intent_olabel} {weight}",
+                    file=fst_file,
                 )
             else:
                 # No weight
-                print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
+                print(f"{from_state} {to_state} {eps} {intent_olabel}", file=fst_file)
 
-            # Check if final state
-            if n_data[from_node].get("final", False):
-                final_states.add(from_state)
+            # Add intent sub-graphs
+            for edge in nx.edge_bfs(graph, intent_node):
+                edge_data = graph.edges[edge]
+                from_node, to_node = edge
 
-            if n_data[to_node].get("final", False):
-                final_states.add(to_state)
+                # Get input/output labels.
+                # Empty string indicates epsilon transition (eps)
+                ilabel = edge_data.get("ilabel", "") or eps
+                olabel = edge_data.get("olabel", "") or eps
+
+                # Check for whitespace
+                assert (
+                    " " not in ilabel
+                ), f"Input symbol cannot contain whitespace: {ilabel}"
+
+                assert (
+                    " " not in olabel
+                ), f"Output symbol cannot contain whitespace: {olabel}"
+
+                # Map states starting from 0
+                from_state = state_map.get(from_node, len(state_map))
+                state_map[from_node] = from_state
+
+                to_state = state_map.get(to_node, len(state_map))
+                state_map[to_node] = to_state
+
+                # Map labels (symbols) to integers
+                isymbol = symbols.get(ilabel, len(symbols))
+                symbols[ilabel] = isymbol
+                input_symbols[ilabel] = isymbol
+
+                osymbol = symbols.get(olabel, len(symbols))
+                symbols[olabel] = osymbol
+                output_symbols[olabel] = osymbol
+
+                if weight_key:
+                    weight = edge_data.get(weight_key, default_weight)
+                    print(
+                        f"{from_state} {to_state} {ilabel} {olabel} {weight}",
+                        file=fst_file,
+                    )
+                else:
+                    # No weight
+                    print(f"{from_state} {to_state} {ilabel} {olabel}", file=fst_file)
+
+                # Check if final state
+                if n_data[from_node].get("final", False):
+                    final_states.add(from_state)
+
+                if n_data[to_node].get("final", False):
+                    final_states.add(to_state)
 
         # Record final states
         for final_state in final_states:

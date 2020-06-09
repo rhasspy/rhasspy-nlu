@@ -1,5 +1,6 @@
 """Utilities for ARPA language models."""
 import logging
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,8 @@ def graph_to_arpa(
     graph: nx.DiGraph,
     arpa_path: typing.Union[str, Path],
     vocab_path: typing.Optional[typing.Union[str, Path]] = None,
+    intent_filter: typing.Optional[typing.Callable[[str], bool]] = None,
+    **fst_to_arpa_args,
 ):
     """Convert intent graph to ARPA language model using opengrm."""
     with tempfile.TemporaryDirectory() as temp_dir_str:
@@ -29,7 +32,9 @@ def graph_to_arpa(
         osymbols_path = temp_dir / "osymbols.txt"
 
         # Graph -> binary FST
-        graph_to_fst(graph).write_fst(fst_text_path, isymbols_path, osymbols_path)
+        graph_to_fst(graph, intent_filter=intent_filter).write_fst(
+            fst_text_path, isymbols_path, osymbols_path
+        )
 
         if vocab_path:
             # Extract vocabulary
@@ -46,7 +51,9 @@ def graph_to_arpa(
                 _LOGGER.debug("Wrote vocabulary to %s", vocab_path)
 
         # Convert to ARPA
-        fst_to_arpa(fst_text_path, isymbols_path, osymbols_path, arpa_path)
+        fst_to_arpa(
+            fst_text_path, isymbols_path, osymbols_path, arpa_path, **fst_to_arpa_args
+        )
 
 
 def fst_to_arpa(
@@ -185,7 +192,7 @@ def fst_to_arpa_tasks(
         "name": "intent_model",
         "file_dep": [counts_path],
         "targets": [model_path],
-        "actions": ["ngrammake %(dependencies)s %(targets)s"],
+        "actions": ["ngrammake --method=witten_bell %(dependencies)s %(targets)s"],
     }
 
     if base_fst_weight:
@@ -216,6 +223,112 @@ def fst_to_arpa_tasks(
         "targets": [arpa_path],
         "actions": ["ngramprint --ARPA %(dependencies)s > %(targets)s"],
     }
+
+
+# -----------------------------------------------------------------------------
+
+
+def mix_language_models(
+    small_arpa_path: typing.Union[str, Path],
+    large_fst_path: typing.Union[str, Path],
+    mix_weight: float,
+    mixed_arpa_path: typing.Union[str, Path],
+    small_fst_path: typing.Optional[typing.Union[str, Path]] = None,
+    mixed_fst_path: typing.Optional[typing.Union[str, Path]] = None,
+):
+    """Mix a large pre-built FST language model with a small ARPA model."""
+    with tempfile.NamedTemporaryFile(suffix=".fst", mode="w+") as small_fst:
+        # Convert small ARPA to FST
+        if not small_fst_path:
+            small_fst_path = small_fst.name
+
+        small_command = [
+            "ngramread",
+            "--ARPA",
+            str(small_arpa_path),
+            str(small_fst_path),
+        ]
+        _LOGGER.debug(small_command)
+        subprocess.check_call(small_command)
+
+        with tempfile.NamedTemporaryFile(suffix=".fst", mode="w+") as mixed_fst:
+            # Merge ngram FSTs
+            small_fst.seek(0)
+
+            if not mixed_fst_path:
+                mixed_fst_path = mixed_fst.name
+
+            merge_command = [
+                "ngrammerge",
+                f"--alpha={mix_weight}",
+                str(large_fst_path),
+                str(small_fst_path),
+                str(mixed_fst_path),
+            ]
+            _LOGGER.debug(merge_command)
+            subprocess.check_call(merge_command)
+
+            # Write to final ARPA
+            mixed_fst.seek(0)
+            print_command = [
+                "ngramprint",
+                "--ARPA",
+                str(mixed_fst_path),
+                str(mixed_arpa_path),
+            ]
+            _LOGGER.debug(print_command)
+            subprocess.check_call(print_command)
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_perplexity(
+    text: str, language_model_fst: typing.Union[str, Path], debug: bool = False
+) -> typing.Optional[float]:
+    """Compute perplexity of text with ngramperplexity."""
+
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        temp_path = Path(temp_dir_name)
+        text_path = temp_path / "sentence.txt"
+        text_path.write_text(text)
+
+        symbols_path = temp_path / "sentence.syms"
+        symbols_command = ["ngramsymbols", str(text_path), str(symbols_path)]
+        _LOGGER.debug(symbols_command)
+        subprocess.check_call(symbols_command)
+
+        far_path = temp_path / "sentence.far"
+        compile_command = [
+            "farcompilestrings",
+            f"-symbols={symbols_path}",
+            "-keep_symbols=1",
+            str(text_path),
+            str(far_path),
+        ]
+        _LOGGER.debug(compile_command)
+        subprocess.check_call(compile_command)
+
+        verbosity = 1 if debug else 0
+        perplexity_command = [
+            "ngramperplexity",
+            f"--v={verbosity}",
+            str(language_model_fst),
+            str(far_path),
+        ]
+        _LOGGER.debug(perplexity_command)
+        output = subprocess.check_output(perplexity_command).decode()
+
+        _LOGGER.debug(output)
+
+        last_line = output.strip().splitlines()[-1]
+        match = re.match(r"^.*perplexity\s*=\s*(.+)$", last_line)
+
+        if match:
+            perplexity = float(match.group(1))
+            return perplexity
+
+        return None
 
 
 # -----------------------------------------------------------------------------

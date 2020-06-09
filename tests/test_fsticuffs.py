@@ -568,7 +568,7 @@ class MiscellaneousTestCase(unittest.TestCase):
         """Ensure word sequences in slots can be replaced."""
         ini_text = """
         [PlayMusic]
-        play me ($music_genre)
+        play me ($music_genre){genre}
         """
 
         replacements = {
@@ -588,6 +588,11 @@ class MiscellaneousTestCase(unittest.TestCase):
             # Check sequence substitution
             self.assertEqual(recognition.text, "play me Hard Rock")
 
+            # Check entity source
+            self.assertEqual(len(recognition.entities), 1)
+            genre = recognition.entities[0]
+            self.assertEqual(genre.source, "music_genre")
+
         recognitions = zero_times(recognize("play me classical", graph, fuzzy=False))
         self.assertEqual(len(recognitions), 1)
         recognition = recognitions[0]
@@ -596,11 +601,16 @@ class MiscellaneousTestCase(unittest.TestCase):
         # Check sequence substitution
         self.assertEqual(recognition.text, "play me Classical Music")
 
+        # Check entity source
+        self.assertEqual(len(recognition.entities), 1)
+        genre = recognition.entities[0]
+        self.assertEqual(genre.source, "music_genre")
+
     def test_word_case_preservation(self):
         """Ensure word casing is preserved in raw text."""
         ini_text = """
         [TestIntent]
-        this is a (test){foo}
+        this is a (test){value}
         """
 
         graph = intents_to_graph(parse_ini(ini_text))
@@ -617,16 +627,16 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(recognition.raw_text, "this is a TEST")
 
         self.assertEqual(len(recognition.entities), 1)
-        foo = recognition.entities[0]
-        self.assertEqual(foo.entity, "foo")
-        self.assertEqual(foo.value, "test")
-        self.assertEqual(foo.raw_value, "TEST")
+        value = recognition.entities[0]
+        self.assertEqual(value.entity, "value")
+        self.assertEqual(value.value, "test")
+        self.assertEqual(value.raw_value, "TEST")
 
     def test_slot_case_preservation(self):
         """Ensure word casing is preserved in raw text."""
         ini_text = """
         [TestIntent]
-        this is a ($test){foo}
+        this is a ($test){value}
         """
 
         replacements = {"$test": [Sentence.parse("Bar")]}
@@ -644,10 +654,65 @@ class MiscellaneousTestCase(unittest.TestCase):
         self.assertEqual(recognition.raw_text, "this is a bar")
 
         self.assertEqual(len(recognition.entities), 1)
-        foo = recognition.entities[0]
-        self.assertEqual(foo.entity, "foo")
-        self.assertEqual(foo.value, "Bar")
-        self.assertEqual(foo.raw_value, "bar")
+        value = recognition.entities[0]
+        self.assertEqual(value.entity, "value")
+        self.assertEqual(value.value, "Bar")
+        self.assertEqual(value.raw_value, "bar")
+        self.assertEqual(value.source, "test")
+
+    def test_final_optional_entity(self):
+        """Ensure final optional entity is matched."""
+
+        ini_text = """
+        [ChangeDisplay]
+        display (top | bottom){location} [(page | layer){layout}]
+        """
+
+        graph = intents_to_graph(parse_ini(ini_text))
+
+        recognitions = zero_times(recognize("display bottom layer", graph))
+
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        entities = {e.entity: e for e in recognition.entities}
+
+        self.assertIn("location", entities)
+        location = entities["location"]
+        self.assertEqual(location.value, "bottom")
+
+        self.assertIn("layout", entities)
+        layout = entities["layout"]
+        self.assertEqual(layout.value, "layer")
+
+    def test_slot_case_inside_substitution(self):
+        """Ensure word casing doesn't interfere with group substitution."""
+        ini_text = """
+        [TestIntent]
+        this is a ($test){value}
+        """
+
+        replacements = {"$test": [Sentence.parse("(Bar:bar | Baz:baz):barorbaz")]}
+        graph = intents_to_graph(parse_ini(ini_text), replacements)
+
+        recognitions = zero_times(
+            recognize("this is a bar", graph, fuzzy=False, word_transform=str.lower)
+        )
+        self.assertEqual(len(recognitions), 1)
+        recognition = recognitions[0]
+        self.assertIsNotNone(recognition.intent)
+
+        # Check sequence substitution
+        self.assertEqual(recognition.text, "this is a barorbaz")
+        self.assertEqual(recognition.raw_text, "this is a bar")
+
+        self.assertEqual(len(recognition.entities), 1)
+        value = recognition.entities[0]
+        self.assertEqual(value.entity, "value")
+        self.assertEqual(value.value, "barorbaz")
+        self.assertEqual(value.raw_value, "bar")
+        self.assertEqual(value.source, "test")
 
 
 # -----------------------------------------------------------------------------

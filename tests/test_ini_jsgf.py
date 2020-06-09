@@ -2,7 +2,7 @@
 import unittest
 
 from rhasspynlu.ini_jsgf import get_intent_counts, parse_ini, split_rules
-from rhasspynlu.jsgf import Sentence, Sequence, SequenceType, Word, walk_expression
+from rhasspynlu.jsgf import Sentence, Sequence, SequenceType, Tag, Word, walk_expression
 
 
 class IniJsgfTestCase(unittest.TestCase):
@@ -166,9 +166,60 @@ class IniJsgfTestCase(unittest.TestCase):
             minute,
             Sentence(
                 text="2 | 3",
-                type=SequenceType.ALTERNATIVE,
-                items=[Word("two", substitution="2"), Word("three", substitution="3")],
+                type=SequenceType.GROUP,
+                items=[
+                    Sequence(
+                        text="2 | 3",
+                        type=SequenceType.ALTERNATIVE,
+                        items=[
+                            Word("two", substitution="2"),
+                            Word("three", substitution="3"),
+                        ],
+                    )
+                ],
             ),
+        )
+
+    def test_final_optional_entity(self):
+        """Ensure final optional entity has tag."""
+
+        ini_text = """
+        [ChangeDisplay]
+        display [(page | layer){layout}]
+        """
+
+        intents = parse_ini(ini_text)
+        self.assertEqual(
+            intents,
+            {
+                "ChangeDisplay": [
+                    Sentence(
+                        text="display [(page | layer){layout}]",
+                        items=[
+                            Word("display"),
+                            Sequence(
+                                text="(page | layer){layout}",
+                                type=SequenceType.ALTERNATIVE,
+                                items=[
+                                    Sequence(
+                                        text="page | layer",
+                                        type=SequenceType.GROUP,
+                                        tag=Tag(tag_text="layout"),
+                                        items=[
+                                            Sequence(
+                                                text="page | layer",
+                                                type=SequenceType.ALTERNATIVE,
+                                                items=[Word("page"), Word("layer")],
+                                            )
+                                        ],
+                                    ),
+                                    Word(""),
+                                ],
+                            ),
+                        ],
+                    )
+                ]
+            },
         )
 
 

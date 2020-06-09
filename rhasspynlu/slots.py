@@ -36,14 +36,16 @@ class SlotProgramInfo:
 
 def get_slot_replacements(
     sentences: IntentsType,
-    slots_dirs: typing.List[Path],
-    slot_programs_dirs: typing.List[Path],
+    slots_dirs: typing.Optional[typing.List[Path]] = None,
+    slot_programs_dirs: typing.Optional[typing.List[Path]] = None,
     slot_visitor: typing.Optional[
         typing.Callable[[Expression], typing.Union[bool, Expression]]
     ] = None,
 ) -> ReplacementsType:
     """Create replacement dictionary for referenced slots."""
     replacements: ReplacementsType = {}
+    slots_dirs = slots_dirs or []
+    slot_programs_dirs = slot_programs_dirs or []
 
     # Gather used slot names
     slot_names: typing.Set[str] = set()

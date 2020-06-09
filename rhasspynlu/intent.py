@@ -2,9 +2,14 @@
 Data structures for intent recognition.
 """
 import dataclasses
+import datetime
 import typing
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
+from numbers import Number
+
+from . import utils
 
 
 @dataclass
@@ -12,8 +17,9 @@ class Entity:
     """Named entity from intent."""
 
     entity: str
-    value: str
+    value: typing.Any
     raw_value: str = ""
+    source: str = ""
     start: int = 0
     raw_start: int = 0
     end: int = 0
@@ -21,10 +27,31 @@ class Entity:
     tokens: typing.List[typing.Any] = field(default_factory=list)
     raw_tokens: typing.List[str] = field(default_factory=list)
 
+    @property
+    def value_dict(self):
+        """Get dictionary representation of value."""
+        if isinstance(self.value, Mapping):
+            return self.value
+
+        kind = "Unknown"
+
+        if isinstance(self.value, Number):
+            kind = "Number"
+        elif isinstance(self.value, datetime.date):
+            kind = "Date"
+        elif isinstance(self.value, datetime.time):
+            kind = "Time"
+        elif isinstance(self.value, datetime.datetime):
+            kind = "Datetime"
+        elif isinstance(self.value, datetime.timedelta):
+            kind = "Duration"
+
+        return {"kind": kind, "value": self.value}
+
     @classmethod
     def from_dict(cls, entity_dict: typing.Dict[str, typing.Any]) -> "Entity":
         """Create Entity from dictionary."""
-        return Entity(**entity_dict)
+        return Entity(**utils.only_fields(cls, entity_dict))
 
 
 @dataclass
@@ -37,7 +64,7 @@ class Intent:
     @classmethod
     def from_dict(cls, intent_dict: typing.Dict[str, typing.Any]) -> "Intent":
         """Create Intent from dictionary."""
-        return Intent(**intent_dict)
+        return Intent(**utils.only_fields(cls, intent_dict))
 
 
 @dataclass
@@ -53,7 +80,7 @@ class TagInfo:
     @classmethod
     def from_dict(cls, tag_dict: typing.Dict[str, typing.Any]) -> "TagInfo":
         """Create TagInfo from dictionary."""
-        return TagInfo(**tag_dict)
+        return TagInfo(**utils.only_fields(cls, tag_dict))
 
 
 class RecognitionResult(str, Enum):
@@ -76,9 +103,10 @@ class Recognition:
     raw_tokens: typing.List[str] = field(default_factory=list)
 
     # Transcription details
-    wav_seconds: float = 0.0
-    transcribe_seconds: float = 0.0
-    speech_confidence: float = 0.0
+    wav_seconds: typing.Optional[float] = None
+    transcribe_seconds: typing.Optional[float] = None
+    speech_confidence: typing.Optional[float] = None
+    wav_name: typing.Optional[str] = None
 
     def asdict(self) -> typing.Dict[str, typing.Any]:
         """Convert to dictionary."""
@@ -93,14 +121,10 @@ class Recognition:
     def from_dict(cls, recognition_dict: typing.Dict[str, typing.Any]) -> "Recognition":
         """Create Recognition from dictionary."""
 
-        # Exclude unused fields from Rhasspy JSON format
-        for unused_field in ["intents", "wakewordId"]:
-            recognition_dict.pop(unused_field, None)
-
         intent_dict = recognition_dict.pop("intent", None)
         entity_dicts = recognition_dict.pop("entities", None)
         slots_dict = recognition_dict.pop("slots", None)
-        recognition = Recognition(**recognition_dict)
+        recognition = Recognition(**utils.only_fields(cls, recognition_dict))
 
         if intent_dict:
             recognition.intent = Intent.from_dict(intent_dict)

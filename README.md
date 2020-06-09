@@ -36,7 +36,7 @@ turn on [the] (living room lamp | kitchen light){name}
 graph = rhasspynlu.intents_to_graph(intents)
 ```
 
-The result is a [directed graph](https://networx.github.io/documentation/networkx-2.3/reference/classes/digraph.html) whose states are words and edges are input/output labels.
+The result is a [directed graph](https://networkx.github.io/documentation/networkx-2.3/reference/classes/digraph.html) whose states are words and edges are input/output labels.
 
 You can pass an `intent_filter` function to `parse_ini` to return `True` for only the intent names you want to parse.
 Additionally, a function can be provided for the `sentence_transform` argument that each sentence will be passed through (e.g., to lower case).

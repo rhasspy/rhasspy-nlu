@@ -12,4 +12,4 @@ if [[ -d "${venv}" ]]; then
 fi
 
 export PYTHONPATH="${src_dir}:${PYTHONPATH}"
-python3 -m rhasspynlu "$@"
+python3 "${this_dir}/intents-to-dot.py" | dot -Tsvg

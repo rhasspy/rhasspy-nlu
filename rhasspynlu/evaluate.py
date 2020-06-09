@@ -74,16 +74,16 @@ class TestReport:
     # Number of intents where name and entities match exactly
     correct_intent_and_entities: int = 0
 
-    transcription_accuracy: float = 1.0
+    transcription_accuracy: typing.Optional[float] = None
 
-    intent_accuracy: float = 1.0
+    intent_accuracy: typing.Optional[float] = None
 
-    entity_accuracy: float = 1.0
+    entity_accuracy: typing.Optional[float] = None
 
-    intent_entity_accuracy: float = 1.0
+    intent_entity_accuracy: typing.Optional[float] = None
 
     # Average wav seconds / transcribe seconds
-    average_transcription_speedup: float = 1.0
+    average_transcription_speedup: typing.Optional[float] = None
 
 
 # -----------------------------------------------------------------------------
@@ -108,8 +108,8 @@ def evaluate_intents(
         expected_intent = expected[wav_name]
 
         # Compute real-time speed-up
-        wav_seconds = actual_intent.wav_seconds
-        transcribe_seconds = actual_intent.transcribe_seconds
+        wav_seconds = actual_intent.wav_seconds or 0.0
+        transcribe_seconds = actual_intent.transcribe_seconds or 0.0
         if (transcribe_seconds > 0) and (wav_seconds > 0):
             speedups.append(wav_seconds / transcribe_seconds)
 
@@ -177,7 +177,7 @@ def evaluate_intents(
         if expected_text:
             word_error = get_word_error(expected_text.split(), actual_text.split())
             report.num_words += word_error.words
-            report.correct_words += word_error.matches
+            report.correct_words += word_error.words - word_error.errors
 
             # pylint: disable=E1136
             report.actual[wav_name].word_error = word_error
@@ -190,28 +190,23 @@ def evaluate_intents(
         _LOGGER.warning("No WAV files found")
 
     # Compute transcription speedup
-    report.average_transcription_speedup = 0
     if speedups:
         report.average_transcription_speedup = sum(speedups) / len(speedups)
 
     # Summarize results
-    report.transcription_accuracy = (
-        report.correct_words / report.num_words if report.num_words > 0 else 1
-    )
-    report.intent_accuracy = (
-        report.correct_intent_names / report.num_intents
-        if report.num_intents > 0
-        else 1
-    )
-    report.entity_accuracy = (
-        report.correct_entities / report.num_entities if report.num_entities > 0 else 1
-    )
-    report.intent_entity_accuracy = (
-        report.correct_intent_and_entities / report.num_intents
-        if report.num_intents > 0
-        else 1
-    )
-    report.average_transcription_speedup = report.average_transcription_speedup
+    if report.num_words > 0:
+        report.transcription_accuracy = report.correct_words / report.num_words
+
+    if report.num_intents > 0:
+        report.intent_accuracy = report.correct_intent_names / report.num_intents
+
+    if report.num_entities > 0:
+        report.entity_accuracy = report.correct_entities / report.num_entities
+
+    if report.num_intents > 0:
+        report.intent_entity_accuracy = (
+            report.correct_intent_and_entities / report.num_intents
+        )
 
     return report
 

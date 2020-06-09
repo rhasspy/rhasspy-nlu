@@ -1,10 +1,12 @@
 """Recognition functions for sentences using JSGF graphs."""
+import base64
 import itertools
 import random
 import time
 import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 
 import networkx as nx
 
@@ -500,6 +502,10 @@ def path_to_recognition(
         edge_data = graph[last_node][next_node]
         olabel = edge_data.get("olabel") or ""
 
+        if olabel[:10] == ("__unpack__"):
+            # Decode payload as base64-encoded bytestring
+            olabel = base64.decodebytes(olabel[10:].encode()).decode()
+
         if olabel[:9] == "__label__":
             # Intent name
             assert recognition.intent is not None
@@ -645,6 +651,10 @@ def path_to_recognition(
 
                 # Add to recognition
                 recognition.entities.append(last_entity)
+            elif conv_token_str.startswith("__source__"):
+                if entity_stack:
+                    last_entity = entity_stack[-1]
+                    last_entity.source = conv_token_str[10:]
             elif entity_stack:
                 # Add to most recent named entity
                 last_entity = entity_stack[-1]
@@ -681,6 +691,18 @@ def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any
         "bool": lambda *args: map(bool, args),
         "lower": lambda *args: map(str.lower, args),
         "upper": lambda *args: map(str.upper, args),
+        "object": lambda *args: [
+            {"value": args[0] if len(args) == 1 else " ".join(str(a) for a in args)}
+        ],
+        "kind": lambda *args, converter_args=None: [
+            {"kind": converter_args[0], **a} for a in args
+        ],
+        "unit": lambda *args, converter_args=None: [
+            {"unit": converter_args[0], **a} for a in args
+        ],
+        "datetime": lambda *args, converter_args=None: [
+            datetime.strptime(" ".join(str(a) for a in args), *converter_args)
+        ],
     }
 
 
@@ -696,17 +718,7 @@ def sample_by_intent(
 
     sentences_by_intent: typing.Dict[str, typing.List[Recognition]] = defaultdict(list)
 
-    start_node = None
-    end_node = None
-    for node, node_data in intent_graph.nodes(data=True):
-        if node_data.get("start", False):
-            start_node = node
-        elif node_data.get("final", False):
-            end_node = node
-
-        if start_node and end_node:
-            break
-
+    start_node, end_node = get_start_end_nodes(intent_graph)
     assert (start_node is not None) and (
         end_node is not None
     ), "Missing start/end node(s)"
