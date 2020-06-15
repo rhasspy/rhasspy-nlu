@@ -82,16 +82,20 @@ def get_slot_replacements(
             _LOGGER.debug("Running program for slot %s: %s", slot_key, slot_command)
 
             # Parse each non-empty line as a JSGF sentence
+            has_output = False
             for line in subprocess.check_output(
                 slot_command, universal_newlines=True
             ).splitlines():
                 line = line.strip()
                 if line:
+                    has_output = True
                     sentence = Sentence.parse(line)
                     if slot_visitor:
                         walk_expression(sentence, slot_visitor)
 
                     slot_values.append(sentence)
+
+            assert has_output, f"No output from {slot_command}"
         else:
             _LOGGER.warning(
                 "Failed to load file/program for slot %s (tried: %s, %s)",
