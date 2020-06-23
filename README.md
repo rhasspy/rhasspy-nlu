@@ -7,6 +7,26 @@
 
 Library for parsing Rhasspy sentence templates, doing intent recognition, and generating ARPA language models.
 
+## Requirements
+
+* Python 3.7
+
+## Installation
+
+```bash
+$ git clone https://github.com/rhasspy/rhasspy-nlu
+$ cd rhasspy-nlu
+$ ./configure
+$ make
+$ make install
+```
+
+## Running
+
+```bash
+$ bin/rhasspy-nlu <ARGS>
+```
+
 ## Parsing Sentence Templates
 
 Rhasspy voice commands are stored in text files formatted like this:
