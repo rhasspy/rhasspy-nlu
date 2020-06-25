@@ -369,7 +369,7 @@ for intent_name in counts:
     print(intent_name)
     for ngram, count in counts[intent_name].items():
         print(ngram, count)
-        
+
     print("")
 ```
 
@@ -407,7 +407,7 @@ SetColor
 
 ### Opengrm
 
-If you have the [Opengrm](http://www.opengrm.org/twiki/bin/view/GRM/NGramLibrary) command-line tools in your `PATH`, you can use `rhasspynlu` to generate language models in the [ARPA format](https://cmusphinx.github.io/wiki/arpaformat/). 
+If you have the [Opengrm](http://www.opengrm.org/twiki/bin/view/GRM/NGramLibrary) command-line tools in your `PATH`, you can use `rhasspynlu` to generate language models in the [ARPA format](https://cmusphinx.github.io/wiki/arpaformat/).
 
 The `graph_to_fst` and `fst_to_arpa` functions are used to convert between formats. Calling `fst_to_arpa` requires the following binaries to be present in your `PATH`:
 
@@ -470,7 +470,7 @@ python3 -m rhasspynlu sentences.ini > graph.json
 
 You can pass multiple `.ini` files as arguments, and they will be combined. Adding a `--fst` argument will write out FST text files instead:
 
-```
+```bash
 python3 -m rhasspynlu sentences.ini --fst
 ```
 
