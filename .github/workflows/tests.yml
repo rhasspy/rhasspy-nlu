@@ -46,6 +46,7 @@ jobs:
         id: bump_tag
   publish:
     needs: [tagging]
+    if: jobs.tagging.outputs.new_tag != ''
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout code
