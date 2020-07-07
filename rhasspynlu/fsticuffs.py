@@ -683,12 +683,17 @@ def path_to_recognition(
 # -----------------------------------------------------------------------------
 
 
+def bool_converter(obj: typing.Any) -> bool:
+    """Returns False if argument is 'false' string or zero."""
+    return (obj != 0) and (str(obj).lower() != "false")
+
+
 def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any]]:
     """Get built-in fsticuffs converters"""
     return {
         "int": lambda *args: map(int, args),
         "float": lambda *args: map(float, args),
-        "bool": lambda *args: map(bool, args),
+        "bool": lambda *args: map(bool_converter, args),
         "lower": lambda *args: map(str.lower, args),
         "upper": lambda *args: map(str.upper, args),
         "object": lambda *args: [
