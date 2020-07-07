@@ -615,57 +615,58 @@ def path_to_recognition(
         # Handle converted (output) token
         if conv_token is not None:
             conv_token_str = str(conv_token)
-            if conv_token_str.startswith("__begin__"):
-                # Begin tag/entity
-                entity_name = conv_token[9:]
-                entity_stack.append(
-                    Entity(
-                        entity=entity_name,
-                        value="",
-                        start=sub_index,
-                        raw_start=raw_index,
+            if conv_token_str:
+                if conv_token_str.startswith("__begin__"):
+                    # Begin tag/entity
+                    entity_name = conv_token[9:]
+                    entity_stack.append(
+                        Entity(
+                            entity=entity_name,
+                            value="",
+                            start=sub_index,
+                            raw_start=raw_index,
+                        )
                     )
-                )
-            elif conv_token_str.startswith("__end__"):
-                # End tag/entity
-                assert entity_stack, "Found __end__ without a __begin__"
-                last_entity = entity_stack.pop()
-                actual_name = conv_token[7:]
-                assert (
-                    last_entity.entity == actual_name
-                ), "Mismatched entity name (expected {last_entity.entity}, got {actual_name})"
+                elif conv_token_str.startswith("__end__"):
+                    # End tag/entity
+                    assert entity_stack, "Found __end__ without a __begin__"
+                    last_entity = entity_stack.pop()
+                    actual_name = conv_token[7:]
+                    assert (
+                        last_entity.entity == actual_name
+                    ), "Mismatched entity name (expected {last_entity.entity}, got {actual_name})"
 
-                # Assign end indexes
-                last_entity.end = sub_index - 1
-                last_entity.raw_end = raw_index - 1
+                    # Assign end indexes
+                    last_entity.end = sub_index - 1
+                    last_entity.raw_end = raw_index - 1
 
-                # Create values
-                if len(last_entity.tokens) == 1:
-                    # Use Python object
-                    last_entity.value = last_entity.tokens[0]
-                else:
-                    # Join as string
-                    last_entity.value = " ".join(str(t) for t in last_entity.tokens)
+                    # Create values
+                    if len(last_entity.tokens) == 1:
+                        # Use Python object
+                        last_entity.value = last_entity.tokens[0]
+                    else:
+                        # Join as string
+                        last_entity.value = " ".join(str(t) for t in last_entity.tokens)
 
-                last_entity.raw_value = " ".join(last_entity.raw_tokens)
+                    last_entity.raw_value = " ".join(last_entity.raw_tokens)
 
-                # Add to recognition
-                recognition.entities.append(last_entity)
-            elif conv_token_str.startswith("__source__"):
-                if entity_stack:
+                    # Add to recognition
+                    recognition.entities.append(last_entity)
+                elif conv_token_str.startswith("__source__"):
+                    if entity_stack:
+                        last_entity = entity_stack[-1]
+                        last_entity.source = conv_token_str[10:]
+                elif entity_stack:
+                    # Add to most recent named entity
                     last_entity = entity_stack[-1]
-                    last_entity.source = conv_token_str[10:]
-            elif entity_stack:
-                # Add to most recent named entity
-                last_entity = entity_stack[-1]
-                last_entity.tokens.append(conv_token)
+                    last_entity.tokens.append(conv_token)
 
-                recognition.tokens.append(conv_token)
-                sub_index += len(conv_token_str) + 1
-            else:
-                # Substituted text
-                recognition.tokens.append(conv_token)
-                sub_index += len(conv_token_str) + 1
+                    recognition.tokens.append(conv_token)
+                    sub_index += len(conv_token_str) + 1
+                else:
+                    # Substituted text
+                    recognition.tokens.append(conv_token)
+                    sub_index += len(conv_token_str) + 1
 
     # Step 4: create text fields and compute confidence
     recognition.text = " ".join(str(t) for t in recognition.tokens)
