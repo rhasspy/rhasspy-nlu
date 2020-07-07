@@ -613,7 +613,7 @@ def path_to_recognition(
                 last_entity.raw_tokens.append(raw_token)
 
         # Handle converted (output) token
-        if conv_token:
+        if conv_token is not None:
             conv_token_str = str(conv_token)
             if conv_token_str.startswith("__begin__"):
                 # Begin tag/entity
