@@ -43,6 +43,8 @@ def read_pronunciations(
     action: PronunciationAction = PronunciationAction.APPEND,
 ) -> PronunciationsType:
     """Loads a CMU-like pronunciation dictionary, optionally into an existing dictionary."""
+    word_actions: typing.Dict[str, PronunciationAction] = {}
+
     if word_dict is None:
         word_dict = {}
 
@@ -57,14 +59,15 @@ def read_pronunciations(
 
             word = word.split("(")[0]
             has_word = word in word_dict
+            word_action = word_actions.get(word, action)
 
-            if has_word and (action == PronunciationAction.APPEND):
+            if has_word and (word_action == PronunciationAction.APPEND):
                 # Append to list of pronunciations
                 word_dict[word].append(pronounce)
-            elif action == PronunciationAction.OVERWRITE_ONCE:
+            elif word_action == PronunciationAction.OVERWRITE_ONCE:
                 # Overwrite just once, then append
                 word_dict[word] = [pronounce]
-                action = PronunciationAction.APPEND
+                word_actions[word] = PronunciationAction.APPEND
             else:
                 # Overwrite
                 word_dict[word] = [pronounce]
