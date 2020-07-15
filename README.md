@@ -1,6 +1,6 @@
 # Rhasspy Natural Language Understanding
 
-[![Continous Integration](https://github.com/rhasspy/rhasspy-nlu/workflows/Tests/badge.svg)](https://github.com/rhasspy/rhasspy-nlu/actions)
+[![Continuous Integration](https://github.com/rhasspy/rhasspy-nlu/workflows/Tests/badge.svg)](https://github.com/rhasspy/rhasspy-nlu/actions)
 [![PyPI package version](https://img.shields.io/pypi/v/rhasspy-nlu.svg)](https://pypi.org/project/rhasspy-nlu)
 [![Python versions](https://img.shields.io/pypi/pyversions/rhasspy-nlu.svg)](https://www.python.org)
 [![GitHub license](https://img.shields.io/github/license/rhasspy/rhasspy-nlu.svg)](https://github.com/rhasspy/rhasspy-nlu/blob/master/LICENSE)
@@ -493,3 +493,154 @@ fstcompile \
     fst.txt \
     out.fst
 ```
+
+## Word Pronunciations
+
+Methods for loading and using phonetic pronunciation dictionaries are provided in `rhasspynlu.g2p` ("g2p" stands for "grapheme to phoneme").
+
+Dictionaries are expected in the same format as the [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict), which is simply one word per line with whitespace separating words and phonemes:
+
+```
+yawn Y AO N
+test T EH S T
+say S EY
+who HH UW
+bee B IY
+azure AE ZH ER
+read R EH D
+read(2) R IY D
+```
+
+When multiple pronunciations are available for a word (like "read" in the previous example), a `(N)` can be suffixed to the word.
+
+You can load a phonetic dictionary into a Python dictionary with `rhasspynlu.g2p.read_pronunciations`:
+
+```python
+import rhasspynlu.g2p
+
+with open("/path/to/file.dict", "r") as dict_file:
+    pronunciations = rhasspynlu.g2p.read_pronunciations(dict_file)
+
+assert pronunciations == {
+    "yawn": [["Y", "AO", "N"]],
+    "test": [["T", "EH", "S", "T"]],
+    "say": [["S", "EY"]],
+    "who": [["HH", "UW"]],
+    "bee": [["B", "IY"]],
+    "azure": [["AE", "ZH", "ER"]],
+    "read": [["R", "EH", "D"], ["R", "IY", "D"]],
+}
+```
+
+See [voice2json profiles](https://github.com/synesthesiam/voice2json-profiles) for pre-built phonetic dictionaries.
+
+### Guessing Pronunciations
+
+The `rhasspynlu.g2p.guess_pronunciations` function uses [Phonetisaurus](https://github.com/AdolfVonKleist/Phonetisaurus) and a pre-trained grapheme to phoneme model to guess pronunciations for unknown words. You will need `phonetisaurus-apply` in your `$PATH` and the pre-trained model (`g2p.fst`) available:
+
+```python
+import rhasspynlu.g2p
+
+guesses = rhasspynlu.g2p.guess_pronunciations(
+    ["moogle", "ploop"], "/path/to/g2p.fst", num_guesses=1
+)
+
+print(list(guesses))
+
+# Something like: [
+#   ('moogle', ['M', 'UW', 'G', 'AH', 'L']),
+#   ('ploop', ['P', 'L', 'UW', 'P'])
+# ]
+```
+
+See [voice2json profiles](https://github.com/synesthesiam/voice2json-profiles) for pre-trained g2p models.
+
+### Sounds Like Pronunciations
+
+Rhasspy NLU supports an alternative way of specifying word pronunciations. Instead of specifying phonemes directly, you can describe how a word should be pronounced by referencing other words:
+
+```
+unknown_word1 known_word1 [known_word2] ...
+...
+```
+
+For example, the singer [Beyoncé](https://www.beyonce.com/) sounds like a combination of the words "bee yawn say":
+
+```
+beyoncé bee yawn say
+```
+
+The `rhasspynlu.g2p.load_sounds_like` function will parse this text and, when given an existing pronunciation dictionary, generate a new pronunciation:
+
+```python
+import io
+
+import rhasspynlu.g2p
+
+# Load existing dictionary
+pronunciations = rhasspynlu.g2p.read_pronunciations("/path/to/file.dict")
+
+sounds_like = """
+beyoncé bee yawn say
+"""
+
+with io.StringIO(sounds_like) as f:
+    rhasspynlu.g2p.load_sounds_like(f, pronunciations)
+
+print(pronunciations["beyoncé"])
+
+# Something like: [['B', 'IY', 'Y', 'AO', 'N', 'S', 'EY']]
+```
+
+You may reference a specific pronunciation for a known word using the `word(N)` syntax, where `N` is 1-based. Pronunciations are loaded in line order, so the order is predictable. For example, `read(2)` will reference the second pronunciation of the word "read". Without an `(N)`, all pronunciations found will be used.
+
+#### Phoneme Literals
+
+You can interject phonetic chunks into these pronunciations too. For example, the word "hooiser" sounds like "who" and the "-zure" in "azure":
+
+```
+hooiser who /Z 3/
+```
+
+Text between slashes (`/`) will be interpreted as phonemes in the configured speech system.
+
+#### Word Segments
+
+If a grapheme-to-phoneme alignment corupus is available, segments of words can also be used for pronunciations. Using the "hooiser" example above, we can replace the phonemes with:
+
+```
+hooiser who a>zure<
+```
+
+This will combine the pronunciation of "who" from the current phonetic dictionaries (`base_dictionary.txt` and `custom_words.txt`) and the "-zure" from the word "azure".
+
+The brackets point `>at<` the segment of the word that you want to contribute to the pronunciation. This is accomplished using a grapheme-to-phoneme alignment corpus generated with [phonetisaurus
+](https://github.com/AdolfVonKleist/Phonetisaurus) and a pre-built phonetic dictionary. In the `a>zure<` example, the word "azure" is located in the alignment corpus, and the output phonemes from the phonemes "zure" in it are used.
+
+```python
+import io
+
+import rhasspynlu.g2p
+
+# Load existing dictionary
+pronunciations = rhasspynlu.g2p.read_pronunciations("/path/to/file.dict")
+
+# Example alignment corpus:
+# a}AE z}ZH u|r}ER e}_
+alignment = rhasspynlu.g2p.load_g2p_corpus("/path/to/g2p.corpus")
+
+sounds_like = """
+hooiser who a>zure<
+"""
+
+with io.StringIO(sounds_like) as f:
+    rhasspynlu.g2p.load_sounds_like(
+        f, pronunciations, g2p_alignment=alignment
+    )
+
+print(pronunciations["hooiser"])
+
+# Something like [["HH", "UW", "ZH", "ER"]]
+```
+
+See [voice2json profiles](https://github.com/synesthesiam/voice2json-profiles) for g2p alignment corpora.
