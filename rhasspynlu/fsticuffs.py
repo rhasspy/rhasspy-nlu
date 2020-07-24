@@ -173,7 +173,7 @@ def paths_strict(
             olabel = edge_data.get("olabel", "")
             matching_tokens: typing.List[str] = []
 
-            if olabel.startswith("__label__"):
+            if olabel[:9] == "__label__":
                 intent_name = olabel[9:]
                 if not intent_filter(intent_name):
                     # Skip intent
@@ -364,12 +364,12 @@ def paths_fuzzy(
             next_intent = q_intent
 
             if out_label:
-                if out_label.startswith("__label__"):
+                if out_label[:9] == "__label__":
                     next_intent = out_label[9:]
                     if not intent_filter(next_intent):
                         # Skip intent
                         continue
-                elif not out_label.startswith("__"):
+                elif out_label[:2] != "__":
                     next_out_count += 1
 
             cost_output = cost_function(
@@ -502,11 +502,11 @@ def path_to_recognition(
         edge_data = graph[last_node][next_node]
         olabel = edge_data.get("olabel") or ""
 
-        if olabel.startswith("__unpack__"):
+        if olabel[:10] == "__unpack__":
             # Decode payload as base64-encoded bytestring
             olabel = base64.decodebytes(olabel[10:].encode()).decode()
 
-        if olabel.startswith("__label__"):
+        if olabel[:9] == "__label__":
             # Intent name
             assert recognition.intent is not None
             recognition.intent.name = olabel[9:]
@@ -519,10 +519,10 @@ def path_to_recognition(
     raw_conv_tokens: typing.List[typing.Tuple[str, typing.Any, typing.List[str]]] = []
 
     for raw_token, sub_token, original_tokens in raw_sub_tokens:
-        if sub_token and converter_stack and (not sub_token.startswith("__")):
+        if sub_token and converter_stack and (sub_token[:2] != "__"):
             # Add to existing converter
             converter_stack[-1].tokens.append((raw_token, sub_token, original_tokens))
-        elif sub_token.startswith("__convert__"):
+        elif sub_token[:11] == "__convert__":
             # Begin converter
             converter_key = sub_token[11:]
             converter_name = converter_key
@@ -537,7 +537,7 @@ def path_to_recognition(
                     key=converter_key, name=converter_name, args=converter_args
                 )
             )
-        elif sub_token.startswith("__converted__"):
+        elif sub_token[:13] == "__converted__":
             # End converter
             assert converter_stack, "Found __converted__ without a __convert__"
             last_converter = converter_stack.pop()
@@ -616,7 +616,7 @@ def path_to_recognition(
         if conv_token is not None:
             conv_token_str = str(conv_token)
             if conv_token_str:
-                if conv_token_str.startswith("__begin__"):
+                if conv_token_str[:9] == "__begin__":
                     # Begin tag/entity
                     entity_name = conv_token[9:]
                     entity_stack.append(
@@ -627,7 +627,7 @@ def path_to_recognition(
                             raw_start=raw_index,
                         )
                     )
-                elif conv_token_str.startswith("__end__"):
+                elif conv_token_str[:7] == "__end__":
                     # End tag/entity
                     assert entity_stack, "Found __end__ without a __begin__"
                     last_entity = entity_stack.pop()
@@ -652,7 +652,7 @@ def path_to_recognition(
 
                     # Add to recognition
                     recognition.entities.append(last_entity)
-                elif conv_token_str.startswith("__source__"):
+                elif conv_token_str[:10] == "__source__":
                     if entity_stack:
                         last_entity = entity_stack[-1]
                         last_entity.source = conv_token_str[10:]
