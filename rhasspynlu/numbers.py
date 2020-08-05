@@ -21,7 +21,9 @@ def number_to_words(
 ) -> typing.List[str]:
     """Convert number to list of words (75 -> seventy five)"""
     language = language or "en"
-    number_text = num2words(number, lang=language).replace("-", " ").strip()
+    number_text = (
+        num2words(number, lang=language).replace("-", " ").replace(",", "").strip()
+    )
     return number_text.split()
 
 
