@@ -197,8 +197,15 @@ def fst_to_arpa_tasks(
 
     if base_fst_weight:
         # Mixed language modeling
-        base_path, base_weight = base_fst_weight
+        base_path_str, base_weight = base_fst_weight
         if base_weight > 0:
+            base_path = Path(base_path_str)
+            if not base_path.is_file():
+                # Major assumption: base language model has the same stem as the
+                # FST, just with a .txt suffix.
+                base_arpa_path = base_path.with_suffix(".txt")
+                yield arpa_to_fst_task(base_arpa_path, base_path)
+
             merge_path = merge_path or Path(str(fst_path) + ".merge")
 
             # merge

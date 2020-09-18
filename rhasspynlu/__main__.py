@@ -98,13 +98,14 @@ def main():
                     for intent, recognitions in sentences_by_intent.items()
                 },
                 sys.stdout,
+                ensure_ascii=False,
             )
         else:
             # Output JSON
             _LOGGER.debug("Writing to stdout")
             graph_dict = graph_to_json(graph)
 
-            json.dump(graph_dict, sys.stdout)
+            json.dump(graph_dict, sys.stdout, ensure_ascii=False)
     except KeyboardInterrupt:
         pass
 

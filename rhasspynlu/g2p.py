@@ -97,6 +97,12 @@ def write_pronunciations(
     with open(dictionary, "w") as dictionary_file:
         for word in vocabulary:
             word_phonemes = pronunciations.get(word)
+            if not word:
+                _LOGGER.warning(
+                    "Empty word in vocabulary with pronunciations: %s", word_phonemes
+                )
+                continue
+
             if not word_phonemes:
                 # Add to missing word list
                 _LOGGER.warning("Missing word '%s'", word)
