@@ -24,8 +24,8 @@ function maybe_download {
     fi
 }
 
-num2words_file="${download}/num2words_0.5.10-se.tar.gz"
-num2words_url='https://github.com/rhasspy/num2words/archive/v0.5.10-se.tar.gz'
+num2words_file="${download}/num2words_0.5.10-sv.tar.gz"
+num2words_url='https://github.com/rhasspy/num2words/archive/v0.5.10-sv.tar.gz'
 
 maybe_download "${num2words_url}" "${num2words_file}"
 
