@@ -16,6 +16,21 @@ download="${src_dir}/download"
 
 # -----------------------------------------------------------------------------
 
+function maybe_download {
+    if [[ ! -s "$2" ]]; then
+        mkdir -p "$(dirname "$2")"
+        curl -sSfL -o "$2" "$1" || { echo "Can't download $1"; exit 1; }
+        echo "$1 => $2"
+    fi
+}
+
+num2words_file="${download}/num2words_0.5.10-se.tar.gz"
+num2words_url='https://github.com/rhasspy/num2words/archive/v0.5.10-se.tar.gz'
+
+maybe_download "${num2words_url}" "${num2words_file}"
+
+# -----------------------------------------------------------------------------
+
 : "${PYTHON=python3}"
 
 # Create virtual environment
@@ -28,6 +43,11 @@ source "${venv}/bin/activate"
 echo "Installing Python dependencies"
 pip3 ${PIP_INSTALL} --upgrade pip
 pip3 ${PIP_INSTALL} --upgrade wheel setuptools
+
+if [[ -f "${num2words_file}" ]]; then
+    pip3 ${PIP_INSTALL} "${num2words_file}"
+fi
+
 pip3 ${PIP_INSTALL} -r requirements.txt
 
 # Optional development requirements
