@@ -707,7 +707,7 @@ def get_default_converters() -> typing.Dict[str, typing.Callable[..., typing.Any
             {"unit": converter_args[0], **a} for a in args
         ],
         "datetime": lambda *args, converter_args=None: [
-            datetime.strptime(" ".join(str(a) for a in args), *converter_args)
+            datetime.strptime(" ".join(str(a) for a in args), *(converter_args or []))
         ],
     }
 

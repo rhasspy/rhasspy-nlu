@@ -225,6 +225,14 @@ def walk_expression(
 # -----------------------------------------------------------------------------
 
 
+def maybe_remove_parens(s: str) -> str:
+    """Remove parentheses from around a string if it has them."""
+    if (len(s) > 1) and (s[0] == "(") and (s[-1] == ")"):
+        return s[1:-1]
+
+    return s
+
+
 def split_words(text: str) -> typing.Iterable[Expression]:
     """Split words by whitespace. Detect slot references and substitutions."""
     tokens: typing.List[str] = []
@@ -384,7 +392,9 @@ def parse_expression(
                 last_taggable.substitution = Substitutable.parse_substitution(sub_text)
             else:
                 # Conversion only
-                conv_text = text[current_index + 1 : next_index].strip()
+                conv_text = maybe_remove_parens(
+                    text[current_index + 1 : next_index].strip()
+                )
                 last_taggable.converters = conv_text.split("!")
 
         elif (c == "(" and last_c != ":") or (c in {"<", "[", "{", "|"}):
