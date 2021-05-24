@@ -1,5 +1,6 @@
 """Grapheme to phoneme functions for word pronunciations."""
 import itertools
+import json
 import logging
 import re
 import shutil
@@ -168,41 +169,68 @@ def guess_pronunciations(
     num_guesses: int = 1,
 ) -> typing.Iterable[typing.Tuple[str, typing.List[str]]]:
     """Guess phonetic pronunciations for words. Yields (word, phonemes) pairs."""
-    if not phonetisaurus_apply:
-        # Find in PATH
-        phonetisaurus_apply = shutil.which("phonetisaurus-apply")
-        assert phonetisaurus_apply, "phonetisaurus-apply not found in PATH"
+    g2p_model = Path(g2p_model)
+    if g2p_model.suffix == ".npz":
+        from .g2p_geepers import GeepersG2P
 
-    g2p_word_transform = g2p_word_transform or (lambda s: s)
+        # Use geepers
+        g2p_config_path = g2p_model.parent / "g2p_config.json"
+        with open(g2p_config_path, "r") as g2p_config_file:
+            g2p_config = json.load(g2p_config_file)
 
-    with tempfile.NamedTemporaryFile(mode="w") as wordlist_file:
+        g2p = GeepersG2P(
+            graphemes=g2p_config["model"]["graphemes"],
+            phonemes=g2p_config["model"]["phonemes"],
+        )
+        g2p.load_variables(g2p_model)
+
         for word in words:
-            word = g2p_word_transform(word)
-            print(word, file=wordlist_file)
+            word = word.strip()
+            if not word:
+                continue
 
-        wordlist_file.seek(0)
-        g2p_command = [
-            str(phonetisaurus_apply),
-            "--model",
-            str(g2p_model),
-            "--word_list",
-            wordlist_file.name,
-            "--nbest",
-            str(num_guesses),
-        ]
+            try:
+                pron = g2p.predict(word)
+                yield word, pron
+            except Exception:
+                _LOGGER.exception("No pronunciation for %s", word)
+    else:
+        # Use phonetisaurus
+        if not phonetisaurus_apply:
+            # Find in PATH
+            phonetisaurus_apply = shutil.which("phonetisaurus-apply")
+            assert phonetisaurus_apply, "phonetisaurus-apply not found in PATH"
 
-        _LOGGER.debug(g2p_command)
-        g2p_lines = subprocess.check_output(
-            g2p_command, universal_newlines=True
-        ).splitlines()
+        g2p_word_transform = g2p_word_transform or (lambda s: s)
 
-        # Output is a pronunciation dictionary.
-        # Append to existing dictionary file.
-        for line in g2p_lines:
-            line = line.strip()
-            if line:
-                word, *phonemes = line.split()
-                yield (word.strip(), phonemes)
+        with tempfile.NamedTemporaryFile(mode="w") as wordlist_file:
+            for word in words:
+                word = g2p_word_transform(word)
+                print(word, file=wordlist_file)
+
+            wordlist_file.seek(0)
+            g2p_command = [
+                str(phonetisaurus_apply),
+                "--model",
+                str(g2p_model),
+                "--word_list",
+                wordlist_file.name,
+                "--nbest",
+                str(num_guesses),
+            ]
+
+            _LOGGER.debug(g2p_command)
+            g2p_lines = subprocess.check_output(
+                g2p_command, universal_newlines=True
+            ).splitlines()
+
+            # Output is a pronunciation dictionary.
+            # Append to existing dictionary file.
+            for line in g2p_lines:
+                line = line.strip()
+                if line:
+                    word, *phonemes = line.split()
+                    yield (word.strip(), phonemes)
 
 
 # -----------------------------------------------------------------------------
