@@ -30,9 +30,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={"rhasspynlu": ["py.typed"]},
     install_requires=requirements,
-    entry_points={
-        "console_scripts": ["rhasspy-nlu = rhasspynlu.__main__:main"]
-    },
+    entry_points={"console_scripts": ["rhasspy-nlu = rhasspynlu.__main__:main"]},
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
