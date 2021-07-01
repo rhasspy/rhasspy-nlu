@@ -450,9 +450,9 @@ def json_to_graph(json_dict: typing.Dict[str, typing.Any]) -> nx.DiGraph:
     return nx.readwrite.json_graph.node_link_graph(json_dict)
 
 
-def graph_to_gzip_pickle(graph: nx.DiGraph, out_file: typing.BinaryIO):
+def graph_to_gzip_pickle(graph: nx.DiGraph, out_file: typing.BinaryIO, filename=None):
     """Convert to binary gzip pickle format."""
-    with gzip.GzipFile(fileobj=out_file, mode="wb") as graph_gzip:
+    with gzip.GzipFile(fileobj=out_file, filename=filename, mode="wb") as graph_gzip:
         nx.readwrite.gpickle.write_gpickle(graph, graph_gzip)
 
 

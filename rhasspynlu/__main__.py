@@ -11,7 +11,7 @@ from .fsticuffs import recognize
 from .ini_jsgf import Expression, Word, parse_ini, split_rules
 from .intent import Recognition
 from .jsgf import walk_expression
-from .jsgf_graph import sentences_to_graph
+from .jsgf_graph import sentences_to_graph, graph_to_json, graph_to_gzip_pickle
 from .numbers import number_range_transform, number_transform
 from .slots import get_slot_replacements
 
@@ -24,9 +24,14 @@ def main():
     parser.add_argument(
         "--sentences", required=True, action="append", help="Sentences ini files"
     )
-    parser.add_argument("--slot-dir", action="append", help="Directory with slot files")
     parser.add_argument(
-        "--slot-programs-dir", action="append", help="Directory with slot programs"
+        "--slot-dir", action="append", default=[], help="Directory with slot files"
+    )
+    parser.add_argument(
+        "--slot-programs-dir",
+        action="append",
+        default=[],
+        help="Directory with slot programs",
     )
     parser.add_argument(
         "--casing",
@@ -41,6 +46,14 @@ def main():
     )
     parser.add_argument(
         "--number-language", default="en", help="Language used for num2words"
+    )
+    parser.add_argument(
+        "--write-json", action="store_true", help="Write JSON graph to stdout and exit"
+    )
+    parser.add_argument(
+        "--write-pickle",
+        action="store_true",
+        help="Write gzipped graph pickle to stdout and exit",
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
@@ -143,6 +156,14 @@ def main():
     # Convert to directed graph
     _LOGGER.debug("Converting to graph")
     graph = sentences_to_graph(sentences, replacements=replacements)
+
+    if args.write_json:
+        json.dump(graph_to_json(graph), sys.stdout)
+        return
+
+    if args.write_pickle:
+        graph_to_gzip_pickle(graph, sys.stdout.buffer, filename="intent_graph.pickle")
+        return
 
     # Read sentences stdin
     try:
