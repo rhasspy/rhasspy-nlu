@@ -42,7 +42,7 @@ def expression_to_graph(
     replacements = replacements or {}
 
     # Handle sequence substitution
-    if isinstance(expression, Substitutable) and expression.substitution:
+    if isinstance(expression, Substitutable) and (expression.substitution is not None):
         # Ensure everything downstream outputs nothing
         empty_substitution += 1
 
@@ -58,7 +58,7 @@ def expression_to_graph(
         )
         source_state = next_state
 
-        if expression.tag.substitution:
+        if expression.tag.substitution is not None:
             # Ensure everything downstream outputs nothing
             empty_substitution += 1
 
@@ -231,7 +231,7 @@ def expression_to_graph(
         source_state = next_state
 
     # Handle sequence substitution
-    if isinstance(expression, Substitutable) and expression.substitution:
+    if isinstance(expression, Substitutable) and (expression.substitution is not None):
         # Output substituted word(s)
         empty_substitution -= 1
         if empty_substitution <= 0:
@@ -250,7 +250,7 @@ def expression_to_graph(
     # Handle tag end
     if isinstance(expression, Taggable) and expression.tag:
         # Handle tag substitution
-        if expression.tag.substitution:
+        if expression.tag.substitution is not None:
             # Output substituted word(s)
             source_state = add_substitution(
                 graph, expression.tag.substitution, source_state

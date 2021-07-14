@@ -348,30 +348,35 @@ def parse_expression(
                 metadata=metadata,
             )
 
-            # Check for substitution sequence.
-            # e.g., (input words):(output words)
-            if text[next_index] == "(":
-                # Find end of group
-                next_end = [")"] + end
-                next_seq_sub = True
+            next_seq_sub = False
+
+            if next_index < len(text):
+                # Check for substitution sequence.
+                # e.g., (input words):(output words)
+                if text[next_index] == "(":
+                    # Find end of group
+                    next_end = [")"] + end
+                    next_seq_sub = True
+                else:
+                    # Find end of word
+                    next_end = [" "] + end
+
+                next_index = parse_expression(
+                    None,
+                    text[current_index + 1 :],
+                    next_end,
+                    is_literal=False,
+                    metadata=metadata,
+                )
+
+                if next_index is None:
+                    # End of text
+                    next_index = len(text) + 1
+                else:
+                    next_index += current_index - 1
             else:
-                # Find end of word
-                next_end = [" "] + end
-                next_seq_sub = False
-
-            next_index = parse_expression(
-                None,
-                text[current_index + 1 :],
-                next_end,
-                is_literal=False,
-                metadata=metadata,
-            )
-
-            if next_index is None:
                 # End of text
                 next_index = len(text) + 1
-            else:
-                next_index += current_index - 1
 
             if next_seq_sub:
                 # Consume end paren

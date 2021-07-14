@@ -187,6 +187,32 @@ class StrictTestCase(unittest.TestCase):
             ],
         )
 
+    def test_drop_group(self):
+        """Test dropping a group."""
+        intents = parse_ini(
+            """
+        [TestIntent]
+        this is (a | another): test
+        """
+        )
+
+        graph = intents_to_graph(intents)
+
+        recognitions = zero_times(recognize("this is a test", graph, fuzzy=False))
+
+        self.assertEqual(
+            recognitions,
+            [
+                Recognition(
+                    intent=Intent(name="TestIntent", confidence=1.0),
+                    text="this is test",
+                    raw_text="this is a test",
+                    tokens=["this", "is", "test"],
+                    raw_tokens=["this", "is", "a", "test"],
+                )
+            ],
+        )
+
 
 # -----------------------------------------------------------------------------
 
