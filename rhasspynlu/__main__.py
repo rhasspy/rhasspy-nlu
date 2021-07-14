@@ -11,7 +11,7 @@ from .fsticuffs import recognize
 from .ini_jsgf import Expression, Word, parse_ini, split_rules
 from .intent import Recognition
 from .jsgf import walk_expression
-from .jsgf_graph import sentences_to_graph, graph_to_json, graph_to_gzip_pickle
+from .jsgf_graph import graph_to_gzip_pickle, graph_to_json, sentences_to_graph
 from .numbers import number_range_transform, number_transform
 from .slots import get_slot_replacements
 

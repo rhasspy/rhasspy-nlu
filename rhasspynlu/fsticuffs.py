@@ -548,14 +548,15 @@ def path_to_recognition(
 
             # Convert and add directly
             raw_tokens: typing.List[str] = []
-            sub_tokens: typing.List[str] = []
+            sub_tokens: typing.List[typing.Any] = []
             orig_tokens: typing.List[typing.List[str]] = []
 
             for t in last_converter.tokens:
                 if t[0]:
                     raw_tokens.append(t[0])
 
-                if t[1]:
+                # Value may be 0
+                if t[1] not in {None, ""}:
                     sub_tokens.append(t[1])
 
                 if t[2]:
