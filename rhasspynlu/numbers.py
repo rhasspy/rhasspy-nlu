@@ -12,7 +12,12 @@ _LOGGER = logging.getLogger(__name__)
 # 0..100, -100..100
 NUMBER_RANGE_PATTERN = re.compile(r"^(-?[0-9]+)\.\.(-?[0-9]+)(,[0-9]+)?$")
 NUMBER_PATTERN = re.compile(r"^(-?[0-9]+)$")
-
+REPLACE_MAP = {
+    "ä": "ae",
+    "ö": "oe",
+    "ü": "ue",
+    "ß": "ss"
+}
 # -----------------------------------------------------------------------------
 
 
@@ -24,8 +29,9 @@ def number_to_words(
     number_text = (
         num2words(number, lang=language).replace("-", " ").replace(",", "").strip()
     )
+    for key in REPLACE_MAP.keys():
+        number_text = number_text.replace(key, REPLACE_MAP.get(key))
     return number_text.split()
-
 
 def replace_numbers(
     words: typing.Iterable[str], language: typing.Optional[str] = None
