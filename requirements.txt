@@ -1,5 +1,5 @@
 grapheme~=0.6.0
 networkx==2.4
-numpy>=1.19.0
+numpy==1.20.1
 num2words==0.5.10
 
